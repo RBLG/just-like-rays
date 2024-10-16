@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "teluri.mods.jlrays.mixin.client",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ExampleClientMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
