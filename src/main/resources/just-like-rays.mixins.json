@@ -3,7 +3,11 @@
 	"package": "teluri.mods.jlrays.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"BlockLightEngineMixin"
+		"BlockLightEngineMixin",
+		"LightEngineMixin",
+		"LevelLightEngineMixin",
+		"ProtoChunkMixin",
+		"LevelChunkMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

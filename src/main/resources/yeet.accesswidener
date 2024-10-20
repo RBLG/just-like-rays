@@ -1,3 +1,20 @@
 accessWidener v2 named
 
 accessible class net/minecraft/world/level/lighting/BlockLightSectionStorage$BlockDataLayerStorageMap
+
+extendable class net/minecraft/world/level/lighting/BlockLightEngine
+
+accessible field net/minecraft/world/level/lighting/LightEngine blockNodesToCheck Lit/unimi/dsi/fastutil/longs/LongOpenHashSet;
+
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage markNewInconsistencies (Lnet/minecraft/world/level/lighting/LightEngine;)V
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage swapSectionMap ()V
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage storingLightForSection (J)Z
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage getStoredLevel (J)I
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage setStoredLevel (JI)V
+
+accessible method net/minecraft/world/level/lighting/BlockLightEngine getEmission (JLnet/minecraft/world/level/block/state/BlockState;)I
+
+mutable field net/minecraft/world/level/lighting/LevelLightEngine blockEngine Lnet/minecraft/world/level/lighting/LightEngine;
+
+
+

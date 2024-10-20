@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.mixin.client;
+package teluri.mods.jlrays.client.mixin;
 
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;

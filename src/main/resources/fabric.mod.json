@@ -3,13 +3,13 @@
 	"id": "just-like-rays",
 	"version": "${version}",
 	"name": "Just Like Rays",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Make light sources lit the environment in a more realistic way",
 	"authors": [
-		"Me!"
+		"A huge nerd"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "todo",
+		"sources": "todo"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/just-like-rays/icon.png",
@@ -19,7 +19,7 @@
 			"teluri.mods.jlrays.JustLikeRays"
 		],
 		"client": [
-			"teluri.mods.jlrays.JustLikeRaysClient"
+			"teluri.mods.jlrays.client.JustLikeRaysClient"
 		]
 	},
 	"mixins": [
