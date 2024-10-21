@@ -89,8 +89,7 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 	public void UpdateLightForSourceChanges(BlockPos pos, int oldemit, int newemit) {// TODO
 		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		int range = 32;
-		double emitboost = 4;
+		int range = 20;
 
 		IOpacityGetter opprov = (x, y, z) -> {
 			this.gettermutpos.set(x, y, z);
@@ -100,14 +99,14 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 			// 1 - this.getOpacity(blockState, this.gettermutpos);
 		};
 
-		ILightConsumer consu = (x, y, z, val, dist) -> {
+		ILightConsumer consu = (x, y, z, visi, dist) -> {
 			long longpos = BlockPos.asLong(x, y, z);
 			if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 				return;
 			}
-			double dval = val * emitboost / dist.length();
-			int nival = (int) Math.clamp(dval * newemit, 0, 15);
-			int oival = (int) Math.clamp(dval * oldemit, 0, 15);
+			double dval = visi * 4 / dist.length();
+			int nival = (int) Math.clamp(dval * newemit - 2, 0, 15);
+			int oival = (int) Math.clamp(dval * oldemit - 2, 0, 15);
 
 			int oldlevel = this.storage.getStoredLevel(longpos);
 
