@@ -11,11 +11,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LayerLightEventListener;
-import teluri.mods.jlrays.ConeTracer26Nbs.ILightConsumer;
+import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 import net.minecraft.world.level.lighting.BlockLightEngine;
 
 public class ConeTracedLightEngine extends BlockLightEngine implements LayerLightEventListener {
+
+	private static final float INV_DECAY_RATE = 1.3f;
 
 	private final MutableBlockPos mutablePos = new MutableBlockPos();
 	private final LongArrayFIFOQueue changeQueue = new LongArrayFIFOQueue();
@@ -29,8 +31,10 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 		long packed = 0;
 		if (pos instanceof ShinyBlockPos) {
 			ShinyBlockPos rpos = (ShinyBlockPos) pos;
-			long newemit = rpos.current.getLightEmission();
-			long oldemit = rpos.previous.getLightEmission();
+			BlockState prev = rpos.previous;
+			BlockState curr = rpos.current;
+			long oldemit = prev.getLightEmission();
+			long newemit = curr.getLightEmission();
 			packed = newemit + (oldemit << 32);
 
 			this.blockNodesToCheck.add(pos.asLong());
@@ -48,7 +52,6 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 	@Override
 	public int runLightUpdates() {
-
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
 			long packedemit = changeQueue.dequeueLong();
@@ -71,7 +74,7 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 		if (this.storage.storingLightForSection(secpos)) {
 			BlockState blockState = this.getState(mutablePos);
-			int newopacity = getOpacity(blockState, gettermutpos) == 15 ? 0 : 1; // 1 == air
+			int newopacity = getOpacity(blockState, mutablePos) == 15 ? 0 : 1; // 1 == air
 			int oldlval = this.storage.getStoredLevel(packedPos);
 			this.storage.setStoredLevel(packedPos, newemit);
 			if (oldemit != 0 || newemit != 0) {
@@ -84,13 +87,11 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 		}
 	}
 
-	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
-
 	public void UpdateLightForSourceChanges(BlockPos pos, int oldemit, int newemit) {
 		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		int range = 20;
+		int range = Integer.max(oldemit, newemit);
 
-		ILightConsumer consu = (x, y, z, visi, dist) -> updateLight(x, y, z, visi, dist, oldemit, newemit, 0.8f);
+		ISightConsumer consu = (x, y, z, visi, alpha, dist) -> updateLight(x, y, z, visi, alpha, dist, oldemit, newemit);
 		ConeTracer26Nbs.TraceAllCones(source, range, this::getOpacity, consu);
 	}
 
@@ -98,21 +99,24 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 	public void UpdateLightForOpacityChange(BlockPos pos, int oldopa, int newopa) {
 		Vector3i origin = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		int range = 20;
+		int range = (int) (15 * INV_DECAY_RATE); // max range for sources to impact that block
 
-		ILightConsumer consu1 = (x, y, z, visi, dist) -> {
+		ISightConsumer consu1 = (x, y, z, visi, alpha, dist) -> {
 			this.gettermutpos2.set(x, y, z);
 			BlockState blockState = this.getState(gettermutpos2);
-			int sourceEmission = blockState.getLightEmission();
-			if (sourceEmission != 0) { // TODO add range check
+			int sourceEmit = blockState.getLightEmission();
+			if (sourceEmit != 0 && dist <= sourceEmit) { // if is a source and is in range
+				int range2 = (int) (sourceEmit * INV_DECAY_RATE);
+				float oldemit = oldopa * sourceEmit;
+				float newemit = newopa * sourceEmit;
 
-				ILightConsumer consu2 = (x2, y2, z2, visi2, dist2) -> {
-					this.updateLight(x2, y2, z2, visi * visi2, dist2, oldopa * sourceEmission, newopa * sourceEmission, 0.8f);
+				ISightConsumer consu2 = (x2, y2, z2, visi2, alpha2, dist2) -> {
+					updateLight(x2, y2, z2, visi * visi2, alpha2, dist2, oldemit, newemit);
 				};
-				consu2.consumer(origin.x, origin.y, origin.z, 1, dist);
+				consu2.consumer(origin.x, origin.y, origin.z, 1, 1, dist);
 
 				Vector3i offset = new Vector3i(origin).sub(x, y, z);
-				ConeTracer26Nbs.TraceChangeCone(origin, offset, range, this::getOpacity, consu2);
+				ConeTracer26Nbs.TraceChangeCone(origin, offset, range2, this::getOpacity, consu2);
 			}
 		};
 		ConeTracer26Nbs.TraceAllCones(origin, range, this::getOpacity, consu1);
@@ -130,21 +134,27 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 		}
 	}
 
+	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
+
 	private float getOpacity(int x, int y, int z) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
 		this.gettermutpos.set(x, y, z);
 		BlockState blockState = this.getState(gettermutpos);
-		return getOpacity(blockState, gettermutpos) == 15 && blockState.getLightEmission() == 0 ? 0 : 1;
+		return getOpacity(blockState, gettermutpos) == 15 ? 0 : 1;
 	}
 
-	private void updateLight(int x, int y, int z, float visi, double dist, float oldemit, float newemit, float decayrate) {
+	private void updateLight(int x, int y, int z, float visi, float alpha, double dist, float oldemit, float newemit) {
+		if (alpha == 0) {
+			return;
+		}
+		//visi *= alpha; //if alpha ever become different than 0 or 1
 		long longpos = BlockPos.asLong(x, y, z);
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
 		// TODO try val/(1+val) *15 ?
-		double len = dist * decayrate;
-		int nival = (int) Math.clamp(visi * Math.max(newemit - len, 0), 0, 15);
-		int oival = (int) Math.clamp(visi * Math.max(oldemit - len, 0), 0, 15);
+		dist /= INV_DECAY_RATE;
+		int nival = (int) Math.clamp(visi * Math.max(newemit - dist, 0), 0, 15);
+		int oival = (int) Math.clamp(visi * Math.max(oldemit - dist, 0), 0, 15);
 
 		int oldlevel = this.storage.getStoredLevel(longpos);
 
