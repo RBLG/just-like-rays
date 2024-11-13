@@ -47,11 +47,14 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 	@Override
 	public boolean hasLightWork() {
-		return !this.changeQueue.isEmpty(); // TODO this.storage.hasInconsistencies() ||
+		return !this.changeQueue.isEmpty() || super.hasLightWork();
 	}
 
 	@Override
 	public int runLightUpdates() {
+		if (changeQueue.size() > 8) {
+			JustLikeRays.LOGGER.debug(String.format("%i sources done at once. there might be mistakes", changeQueue.size()));
+		}
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
 			long packedemit = changeQueue.dequeueLong();
@@ -77,12 +80,12 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 			int newopacity = getOpacity(blockState, mutablePos) == 15 ? 0 : 1; // 1 == air
 			int oldlval = this.storage.getStoredLevel(packedPos);
 			this.storage.setStoredLevel(packedPos, newemit);
-			if (oldemit != 0 || newemit != 0) {
-				UpdateLightForSourceChanges(mutablePos, oldemit, newemit);
-			}
 			int opadiff = newopacity - Integer.signum(oldlval);
 			if (opadiff != 0) {
 				UpdateLightForOpacityChange(mutablePos, Integer.signum(oldlval), newopacity);
+			}
+			if (oldemit != 0 || newemit != 0) {
+				UpdateLightForSourceChanges(mutablePos, oldemit, newemit);
 			}
 		}
 	}
@@ -146,7 +149,7 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 		if (alpha == 0) {
 			return;
 		}
-		//visi *= alpha; //if alpha ever become different than 0 or 1
+		// visi *= alpha; //if alpha ever become different than 0 or 1
 		long longpos = BlockPos.asLong(x, y, z);
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;

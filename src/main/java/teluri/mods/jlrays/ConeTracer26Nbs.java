@@ -73,6 +73,9 @@ public class ConeTracer26Nbs {
 		int o1 = Math.abs(offset.x);
 		int o2 = Math.abs(offset.y);
 		int o3 = Math.abs(offset.z);
+		int order1 = 1;
+		int order2 = 2;
+		int order3 = 3;
 
 		// ordering high to low
 		if (o1 < o2) { // a = a ^ b ^ (b = a) == swap(a,b)
@@ -93,11 +96,20 @@ public class ConeTracer26Nbs {
 			v1 = v2;
 			v2 = vtmp;
 		}
+		order2 = o1 == o2 ? order1 : order2;
+		order3 = o2 == o3 ? order2 : order3;
+
+		Vector3i oforder = new Vector3i(v1).absolute().mul(order1).add(new Vector3i(v2).absolute().mul(order2)).add(new Vector3i(v3).absolute().mul(order3));
 		Offset offset2 = new Offset(o1, o2, o3);
-		Cone cone = new Cone(v1, v2, v3, false, false, false, false); // false mean priority
-		TraceCone(origin, offset2, range, cone, aprov, vcons);
-		// TODO this should do more than one cone in case o1==o2 and/or o2==3 and/or or3==0
-		// but franckly i have no idea how to do that, especially considering that it should handle edge priority, which is done manually rn
+		for (Cone cone : CONES) {
+			if (Math.signum(offset.x) == -cone.xyz.x || Math.signum(offset.y) == -cone.xyz.y || Math.signum(offset.z) == -cone.xyz.z) {
+				continue;
+			}
+			if (cone.order.x < oforder.x || cone.order.y < oforder.y || cone.order.z < oforder.z) {
+				continue;
+			}
+			TraceCone(origin, offset2, range, cone, aprov, vcons);
+		}
 	}
 
 	/**
@@ -198,8 +210,16 @@ public class ConeTracer26Nbs {
 	private static record Cone(// signed iteration cone
 			Vector3i axis1, Vector3i axis2, Vector3i axis3, //
 			boolean edge1, boolean edge2, // diagonal edges priorities
-			boolean qedge2, boolean qedge3 // quadrant edges priorities
-	) {}
+			boolean qedge2, boolean qedge3, // quadrant edges priorities
+			Vector3i xyz, Vector3i order//
+	) {
+		public Cone(Vector3i axis1, Vector3i axis2, Vector3i axis3, boolean edge1, boolean edge2, boolean qedge2, boolean qedge3) {
+			this(axis1, axis2, axis3, edge1, edge2, qedge2, qedge3, new Vector3i(axis1).add(axis2).add(axis3), //
+					new Vector3i(axis1).absolute().add(new Vector3i(axis2).absolute().mul(2)).add(new Vector3i(axis3).absolute().mul(3))//
+			);
+		}
+
+	}
 
 	private static record UCone(Vector3i axis1, Vector3i axis2, Vector3i axis3, boolean edge1, boolean edge2) { // unsigned cone
 

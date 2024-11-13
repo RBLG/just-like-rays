@@ -11,6 +11,7 @@ accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage sw
 accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage storingLightForSection (J)Z
 accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage getStoredLevel (J)I
 accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage setStoredLevel (JI)V
+accessible method net/minecraft/world/level/lighting/LayerLightSectionStorage hasInconsistencies ()Z
 
 accessible method net/minecraft/world/level/lighting/BlockLightEngine getEmission (JLnet/minecraft/world/level/block/state/BlockState;)I
 
