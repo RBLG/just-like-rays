@@ -1,6 +1,9 @@
 package teluri.mods.jlrays;
 
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3i;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import net.minecraft.core.BlockPos;
@@ -8,14 +11,15 @@ import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
-import net.minecraft.world.level.lighting.LayerLightEventListener;
+import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
-import net.minecraft.world.level.lighting.BlockLightEngine;
+import teluri.mods.jlrays.mixed.IBetterDataLayer;
 
-public class ConeTracedLightEngine extends BlockLightEngine implements LayerLightEventListener {
+public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
 
 	private static final float INV_DECAY_RATE = 1.3f;
 
@@ -23,7 +27,12 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 	private final LongArrayFIFOQueue changeQueue = new LongArrayFIFOQueue();
 
 	public ConeTracedLightEngine(LightChunkGetter chunkSource) {
-		super(chunkSource);
+		this(chunkSource, new JlrLightSectionStorage(chunkSource));
+	}
+
+	@VisibleForTesting
+	public ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
+		super(chunkSource, storage);
 	}
 
 	@Override
@@ -53,7 +62,7 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 	@Override
 	public int runLightUpdates() {
 		if (changeQueue.size() > 8) {
-			JustLikeRays.LOGGER.debug(String.format("%i sources done at once. there might be mistakes", changeQueue.size()));
+			JustLikeRays.LOGGER.debug(String.format("%d sources done at once. there might be mistakes", changeQueue.size()));
 		}
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
@@ -132,7 +141,8 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 		if (lightChunk != null) {
 			lightChunk.findBlockLightSources((blockPos, blockState) -> {
 				int i = blockState.getLightEmission();
-				this.UpdateLightForSourceChanges(blockPos, i, 0);
+				this.UpdateLightForSourceChanges(blockPos, 0, i);
+				this.storage.isValid(blockPos.asLong());
 			});
 		}
 	}
@@ -163,6 +173,27 @@ public class ConeTracedLightEngine extends BlockLightEngine implements LayerLigh
 
 		int newlevel = Math.clamp(oldlevel - oival + nival, 0, 15);
 		this.storage.setStoredLevel(longpos, newlevel);
+	}
+
+	// public final int getEmission(long packedPos, BlockState state) {
+	// int i = state.getLightEmission();
+	// return i > 0 && this.storage.lightOnInSection(SectionPos.blockToSection(packedPos)) ? i : 0;
+	// }
+
+	@Override
+	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
+		if (data != null) {
+			IBetterDataLayer bdata = (IBetterDataLayer) data;
+			if (data.isDefinitelyHomogenous()) { // check if data.data is null
+				bdata.setByteSized();
+			} else {
+				if (!bdata.isByteSized()) {
+					JustLikeRays.LOGGER.warn("data layer wasnt byte sized, light value will be squished or overflow");
+				}
+				//else -> data is correct
+			}
+		}
+		super.queueSectionData(sectionPos, data);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

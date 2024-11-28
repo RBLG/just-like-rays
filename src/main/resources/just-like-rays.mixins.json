@@ -5,7 +5,9 @@
 	"mixins": [
 		"LevelLightEngineMixin",
 		"ProtoChunkMixin",
-		"LevelChunkMixin"
+		"LevelChunkMixin",
+		"DataLayerMixin",
+		"ClientboundLightUpdatePacketDataMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
