@@ -44,7 +44,7 @@ public class ConeTracer26Nbs {
 		return ncones;
 	}
 
-	private static final Offset ZERO = new Offset(0, 0, 0);
+	// private static final Offset ZERO = new Offset(0, 0, 0);
 	/////////////////////////////////////////////////////////////////////
 
 	/**
@@ -52,9 +52,10 @@ public class ConeTracer26Nbs {
 	 * 
 	 * @see ConeTracer26Nbs.TraceCone
 	 */
-	public static void TraceAllCones(Vector3i source, int range, IAlphaProvider opmap, ISightConsumer lmap) {
+	public static void traceAllCones(Vector3i source, int range, IAlphaProvider opmap, ISightConsumer lmap) {
+		// ExecutorService pool = Executors.newFixedThreadPool(48);
 		for (Cone cone : CONES) {// 48 times
-			TraceCone(source, ZERO, range, cone, opmap, lmap);
+			traceCone(source, range, cone, opmap, lmap);
 		}
 	}
 
@@ -67,7 +68,7 @@ public class ConeTracer26Nbs {
 	 * @param aprov:  block alpha value provider
 	 * @param lcons:  visibility consumer
 	 */
-	public static void TraceChangeCone(Vector3i origin, Vector3i offset, int range, IAlphaProvider aprov, ISightConsumer vcons) {
+	public static void traceChangeCone(Vector3i origin, Vector3i offset, int range, IAlphaProvider aprov, ISightConsumer vcons) {
 		Vector3i v1 = offset.x < 0 ? NX : X;
 		Vector3i v2 = offset.y < 0 ? NY : Y;
 		Vector3i v3 = offset.z < 0 ? NZ : Z;
@@ -109,25 +110,14 @@ public class ConeTracer26Nbs {
 			if (cone.order.x < oforder.x || cone.order.y < oforder.y || cone.order.z < oforder.z) {
 				continue;
 			}
-			TraceCone(origin, offset2, range, cone, aprov, vcons);
+			traceConeWithOffset(origin, offset2, range, cone, aprov, vcons);
 		}
 	}
 
-	/**
-	 * compute visibility (and light received) over one cone
-	 * 
-	 * @param origin:   origin of the cone
-	 * @param offset:   offset between the origin and the source, components are sorted and absolute
-	 * @param range:    how far should visibility be computed (to be estimated based on emit)
-	 * @param v1,v2,v3: axises vectors
-	 * @param opmap:    opacity provider
-	 * @param vcons     visibility/light value consumer
-	 */
-	public static void TraceCone(Vector3i origin, Offset offset, int range, Cone cone, IAlphaProvider aprov, ISightConsumer vcons) {
+	public static void traceCone(Vector3i origin, int range, Cone cone, IAlphaProvider aprov, ISightConsumer vcons) {
 		final Vector3i vit1 = new Vector3i(); // this is a nature friendly place here, we recycle our objects
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
-		range -= offset.o1;
 		if (range <= 0) {
 			return;
 		}
@@ -140,10 +130,91 @@ public class ConeTracer26Nbs {
 		vbuffer[size] = 1; // the source
 		vbuffer[size + 1] = 1; // the source
 
+		// iterate from source to range (it1)
+		for (int it1 = 1; it1 <= range; it1++) { // start at 1 to skip source
+			vit1.set(cone.axis1).mul(it1);
+			boolean nonzero = false;
+			float totinv = 1f / (it1 + 1);
+			for (int it2 = it1; 0 <= it2; it2--) {// start from the end to handle vbuffer values turnover easily
+				vit2.set(cone.axis2).mul(it2).add(vit1);
+				for (int it3 = it2; 0 <= it3; it3--) { // same than it2
+
+					int index = (it2 * size) + it3;
+					float visi = vbuffer[index];
+					if (visi <= 0) {
+						continue;
+					}
+					visi = Math.clamp(visi, 0, 1);
+					xyz.set(cone.axis3).mul(it3).add(vit2).add(origin); // world position
+
+					float alpha = aprov.get(xyz.x, xyz.y, xyz.z);
+
+					// skip if doesnt have to output the edge (false==should output the edge)
+					if (!((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3))) {
+						// light effects and output
+						double dist = 1 + Vector3f.lengthSquared(it1 * 0.3f, it2 * 0.3f, it3 * 0.3f);
+						vcons.consumer(xyz.x, xyz.y, xyz.z, visi, alpha, dist);
+					}
+
+					if (alpha == 0) {
+						vbuffer[index] = -0.0f;// below zero values mean shadows are larger around edges
+						continue;
+					}
+					nonzero = true;
+
+					// weights
+					int w1 = it1 + 1 - it2;
+					int w2 = it2 + 1 - it3;
+					int w3 = it3 + 1;
+
+					visi *= totinv;
+					// apply to next neigbors
+					vbuffer[index] = visi * w1;
+					vbuffer[index + size] += visi * w2;
+					vbuffer[index + size + 1] += visi * w3;
+
+				}
+			}
+			if (!nonzero) { // if no block was visible on the whole current plane, it mean none will be later
+				return;
+			}
+		}
+
+	}
+
+	/**
+	 * compute visibility (and light received) over one cone
+	 * 
+	 * @param origin:   origin of the cone
+	 * @param offset:   offset between the origin and the source, components are sorted and absolute
+	 * @param range:    how far should visibility be computed (to be estimated based on emit)
+	 * @param v1,v2,v3: axises vectors
+	 * @param opmap:    opacity provider
+	 * @param vcons     visibility/light value consumer
+	 */
+	public static void traceConeWithOffset(Vector3i origin, Offset offset, int range, Cone cone, IAlphaProvider aprov, ISightConsumer vcons) {
+		final Vector3i vit1 = new Vector3i(); // this is a nature friendly place here, we recycle our objects
+		final Vector3i vit2 = new Vector3i();
+		final Vector3i xyz = new Vector3i();
+		range -= offset.o1;
+		if (range <= 0) {
+			return;
+		}
+
+		int size = range + 2;
+
 		// weights adjustments to reflect the source position rather than the origin of the cone
 		int of1 = offset.o1 - offset.o2;
 		int of2 = offset.o2 - offset.o3;
 		int of3 = offset.o3;
+
+		int layer1tot = offset.o1 + 1;
+		// store the visibility values
+		float[] vbuffer = new float[size * size];
+		float[] vbuffer2 = new float[size * size];
+		vbuffer2[0] = vbuffer[0] = (of1 + 1) / layer1tot; // the source
+		vbuffer2[size] = vbuffer[size] = (of2 + 1) / layer1tot; // the source
+		vbuffer2[size + 1] = vbuffer[size + 1] = (of3 + 1) / layer1tot; // the source
 
 		// iterate from source to range (it1)
 		for (int it1 = 1; it1 <= range; it1++) { // start at 1 to skip source

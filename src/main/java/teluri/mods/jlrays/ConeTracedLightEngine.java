@@ -101,7 +101,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
 
 		ISightConsumer consu = (x, y, z, visi, alpha, dist) -> updateLight(x, y, z, visi, alpha, dist, oldemit, newemit);
-		ConeTracer26Nbs.TraceAllCones(source, RANGE, this::getOpacity, consu);
+		ConeTracer26Nbs.traceAllCones(source, RANGE, this::getOpacity, consu);
 	}
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
@@ -124,10 +124,10 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 				consu2.consumer(origin.x, origin.y, origin.z, 1, 1, dist);
 
 				Vector3i offset = new Vector3i(origin).sub(x, y, z);
-				ConeTracer26Nbs.TraceChangeCone(origin, offset, range2, this::getOpacity, consu2);
+				ConeTracer26Nbs.traceChangeCone(origin, offset, range2, this::getOpacity, consu2);
 			}
 		};
-		ConeTracer26Nbs.TraceAllCones(origin, RANGE, this::getOpacity, consu1);
+		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getOpacity, consu1);
 	}
 
 	@Override
