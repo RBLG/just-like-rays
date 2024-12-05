@@ -3,7 +3,7 @@
 	"package": "teluri.mods.jlrays.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ExampleClientMixin"
+		"ClientPacketListenerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

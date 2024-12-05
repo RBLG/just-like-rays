@@ -17,11 +17,9 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
-import teluri.mods.jlrays.mixed.IBetterDataLayer;
 
 public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
-
-	private static final float INV_DECAY_RATE = 1.3f;
+	public static final int RANGE = 20;
 
 	private final MutableBlockPos mutablePos = new MutableBlockPos();
 	private final LongArrayFIFOQueue changeQueue = new LongArrayFIFOQueue();
@@ -61,8 +59,8 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	@Override
 	public int runLightUpdates() {
-		if (changeQueue.size() > 8) {
-			JustLikeRays.LOGGER.debug(String.format("%d sources done at once. there might be mistakes", changeQueue.size()));
+		if (changeQueue.size() > 8) { // TODO should be 2?
+			JustLikeRays.LOGGER.debug(String.format("%d sources done at once. there might be mistakes", changeQueue.size() / 2));
 		}
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
@@ -77,7 +75,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return 0; // return value is unused anyway
 	}
 
-	protected void checkNode(long packedPos, long packedEmit) {
+	protected void checkNode(long packedPos, long packedEmit) { //if it reach there it mean the change was non trivial anyway
 		long secpos = SectionPos.blockToSection(packedPos);
 		this.mutablePos.set(packedPos);
 
@@ -88,7 +86,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 			BlockState blockState = this.getState(mutablePos);
 			int newopacity = getOpacity(blockState, mutablePos) == 15 ? 0 : 1; // 1 == air
 			int oldlval = this.storage.getStoredLevel(packedPos);
-			this.storage.setStoredLevel(packedPos, newemit);
+			this.updateLight(packedPos, 1, 1, 1, oldemit, newemit);
 			int opadiff = newopacity - Integer.signum(oldlval);
 			if (opadiff != 0) {
 				UpdateLightForOpacityChange(mutablePos, Integer.signum(oldlval), newopacity);
@@ -101,24 +99,22 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	public void UpdateLightForSourceChanges(BlockPos pos, int oldemit, int newemit) {
 		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		int range = Integer.max(oldemit, newemit);
 
 		ISightConsumer consu = (x, y, z, visi, alpha, dist) -> updateLight(x, y, z, visi, alpha, dist, oldemit, newemit);
-		ConeTracer26Nbs.TraceAllCones(source, range, this::getOpacity, consu);
+		ConeTracer26Nbs.TraceAllCones(source, RANGE, this::getOpacity, consu);
 	}
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
 
 	public void UpdateLightForOpacityChange(BlockPos pos, int oldopa, int newopa) {
 		Vector3i origin = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		int range = (int) (15 * INV_DECAY_RATE); // max range for sources to impact that block
 
 		ISightConsumer consu1 = (x, y, z, visi, alpha, dist) -> {
 			this.gettermutpos2.set(x, y, z);
 			BlockState blockState = this.getState(gettermutpos2);
 			int sourceEmit = blockState.getLightEmission();
 			if (sourceEmit != 0 && dist <= sourceEmit) { // if is a source and is in range
-				int range2 = (int) (sourceEmit * INV_DECAY_RATE);
+				int range2 = RANGE;
 				float oldemit = oldopa * sourceEmit;
 				float newemit = newopa * sourceEmit;
 
@@ -131,7 +127,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 				ConeTracer26Nbs.TraceChangeCone(origin, offset, range2, this::getOpacity, consu2);
 			}
 		};
-		ConeTracer26Nbs.TraceAllCones(origin, range, this::getOpacity, consu1);
+		ConeTracer26Nbs.TraceAllCones(origin, RANGE, this::getOpacity, consu1);
 	}
 
 	@Override
@@ -142,7 +138,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 			lightChunk.findBlockLightSources((blockPos, blockState) -> {
 				int i = blockState.getLightEmission();
 				this.UpdateLightForSourceChanges(blockPos, 0, i);
-				this.storage.isValid(blockPos.asLong());
+				this.storage.assertValidity(blockPos.asLong());
 			});
 		}
 	}
@@ -156,23 +152,27 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	}
 
 	private void updateLight(int x, int y, int z, float visi, float alpha, double dist, float oldemit, float newemit) {
+		updateLight(BlockPos.asLong(x, y, z), visi, alpha, dist, oldemit, newemit);
+	}
+
+	private void updateLight(long longpos, float visi, float alpha, double dist, float oldemit, float newemit) {
 		if (alpha == 0) {
 			return;
 		}
 		// visi *= alpha; //if alpha ever become different than 0 or 1
-		long longpos = BlockPos.asLong(x, y, z);
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
-		// TODO try val/(1+val) *15 ?
-		dist /= INV_DECAY_RATE;
-		int nival = (int) Math.clamp(visi * Math.max(newemit - dist, 0), 0, 15);
-		int oival = (int) Math.clamp(visi * Math.max(oldemit - dist, 0), 0, 15);
+		visi /= dist;
+		int nival = (int) Math.clamp(visi * newemit - 0.5, 0, 15);
+		int oival = (int) Math.clamp(visi * oldemit - 0.5, 0, 15);
 
-		int oldlevel = this.storage.getStoredLevel(longpos);
+		// this.storage.isValid(longpos);
+		this.storage.addStoredLevel(longpos, -oival + nival);
 
-		int newlevel = Math.clamp(oldlevel - oival + nival, 0, 15);
-		this.storage.setStoredLevel(longpos, newlevel);
+		// lval/dist>1
+		// lval>dist
+
 	}
 
 	// public final int getEmission(long packedPos, BlockState state) {
@@ -182,16 +182,9 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	@Override
 	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
-		if (data != null) {
-			IBetterDataLayer bdata = (IBetterDataLayer) data;
-			if (data.isDefinitelyHomogenous()) { // check if data.data is null
-				bdata.setByteSized();
-			} else {
-				if (!bdata.isByteSized()) {
-					JustLikeRays.LOGGER.warn("data layer wasnt byte sized, light value will be squished or overflow");
-				}
-				//else -> data is correct
-			}
+		if (data != null && !(data instanceof ByteDataLayer)) {
+			this.chunkSource.getLevel();
+			JustLikeRays.LOGGER.warn("block light data layer isnt byte sized");
 		}
 		super.queueSectionData(sectionPos, data);
 	}

@@ -1,5 +1,6 @@
 package teluri.mods.jlrays;
 
+import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 public class ConeTracer26Nbs {
@@ -166,7 +167,7 @@ public class ConeTracer26Nbs {
 					// skip if doesnt have to output the edge (false==should output the edge)
 					if (!((it1 + of1 == it2 && cone.edge1) || (it2 + of2 == it3 && cone.edge2) || (it2 + offset.o2 == 0 && cone.qedge2) || (it3 + offset.o3 == 0 && cone.qedge3))) {
 						// light effects and output
-						double dist = Vector3i.length(it1 + offset.o1, it2 + offset.o2, it3 + offset.o3);
+						double dist = 1 + Vector3f.lengthSquared((it1 + offset.o1) * 0.3f, (it2 + offset.o2) * 0.3f, (it3 + offset.o3) * 0.3f);
 						vcons.consumer(xyz.x, xyz.y, xyz.z, visi, alpha, dist);
 					}
 

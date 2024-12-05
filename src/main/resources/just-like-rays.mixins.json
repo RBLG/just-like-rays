@@ -6,7 +6,7 @@
 		"LevelLightEngineMixin",
 		"ProtoChunkMixin",
 		"LevelChunkMixin",
-		"DataLayerMixin",
+		"ChunkSerializerMixin",
 		"ClientboundLightUpdatePacketDataMixin"
 	],
 	"injectors": {
