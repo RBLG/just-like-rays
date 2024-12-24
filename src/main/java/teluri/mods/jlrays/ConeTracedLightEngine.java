@@ -15,7 +15,9 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
+import teluri.mods.jlrays.ConeTracer26Nbs.IChangeAlphaProvider;
 import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
+import teluri.mods.jlrays.ConeTracer26Nbs.ISightUpdateConsumer2;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 
 public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
@@ -75,21 +77,21 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return 0; // return value is unused anyway
 	}
 
-	protected void checkNode(long packedPos, long packedEmit) { //if it reach there it mean the change was non trivial anyway
+	protected void checkNode(long packedPos, long packedEmit) { // if it reach there it mean the change was non trivial anyway
 		long secpos = SectionPos.blockToSection(packedPos);
 		this.mutablePos.set(packedPos);
 
 		int oldemit = (int) (packedEmit >>> 32);
-		int newemit = (int) packedEmit & Integer.MAX_VALUE;
+		int newemit = (int) (packedEmit & Integer.MAX_VALUE);
 
 		if (this.storage.storingLightForSection(secpos)) {
 			BlockState blockState = this.getState(mutablePos);
 			int newopacity = getOpacity(blockState, mutablePos) == 15 ? 0 : 1; // 1 == air
-			int oldlval = this.storage.getStoredLevel(packedPos);
-			this.updateLight(packedPos, 1, 1, 1, oldemit, newemit);
-			int opadiff = newopacity - Integer.signum(oldlval);
+			int oldlval = Integer.signum(this.storage.getStoredLevel(packedPos)); // !=0 mean air
+			this.updateLight(packedPos, 1, 0, 1, 1, oldemit, newemit);
+			int opadiff = newopacity - oldlval;
 			if (opadiff != 0) {
-				UpdateLightForOpacityChange(mutablePos, Integer.signum(oldlval), newopacity);
+				UpdateLightForOpacityChange(mutablePos, oldlval, newopacity);
 			}
 			if (oldemit != 0 || newemit != 0) {
 				UpdateLightForSourceChanges(mutablePos, oldemit, newemit);
@@ -100,7 +102,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	public void UpdateLightForSourceChanges(BlockPos pos, int oldemit, int newemit) {
 		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
 
-		ISightConsumer consu = (x, y, z, visi, alpha, dist) -> updateLight(x, y, z, visi, alpha, dist, oldemit, newemit);
+		ISightConsumer consu = (xyz, visi, alpha, dist) -> updateLight(xyz.x, xyz.y, xyz.z, visi, 0, alpha, dist, oldemit, newemit);
 		ConeTracer26Nbs.traceAllCones(source, RANGE, this::getOpacity, consu);
 	}
 
@@ -108,23 +110,27 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	public void UpdateLightForOpacityChange(BlockPos pos, int oldopa, int newopa) {
 		Vector3i origin = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
+		Vector3i tmp = new Vector3i();
 
-		ISightConsumer consu1 = (x, y, z, visi, alpha, dist) -> {
-			this.gettermutpos2.set(x, y, z);
+		ISightConsumer consu1 = (sou, souVisi, alpha, dist) -> {
+			this.gettermutpos2.set(sou.x, sou.y, sou.z);
 			BlockState blockState = this.getState(gettermutpos2);
 			int sourceEmit = blockState.getLightEmission();
 			if (sourceEmit != 0 && dist <= sourceEmit) { // if is a source and is in range
 				int range2 = RANGE;
-				float oldemit = oldopa * sourceEmit;
-				float newemit = newopa * sourceEmit;
 
-				ISightConsumer consu2 = (x2, y2, z2, visi2, alpha2, dist2) -> {
-					updateLight(x2, y2, z2, visi * visi2, alpha2, dist2, oldemit, newemit);
+				ISightUpdateConsumer2 consu2 = (xyz2, visi2, changevisi, alpha2, dist2) -> {
+					if (changevisi == 0) {
+						return;
+					}
+					updateLight(xyz2.x, xyz2.y, xyz2.z, visi2, changevisi, alpha2, dist2, sourceEmit, sourceEmit);
 				};
-				consu2.consumer(origin.x, origin.y, origin.z, 1, 1, dist);
+				// consu2.consume(origin.x, origin.y, origin.z, souVisi, newopa - oldopa, 1, dist);
 
-				Vector3i offset = new Vector3i(origin).sub(x, y, z);
-				ConeTracer26Nbs.traceChangeCone(origin, offset, range2, this::getOpacity, consu2);
+				Vector3i offset = new Vector3i(origin).sub(sou);
+				Vector3i source = tmp.set(sou);
+				IChangeAlphaProvider cprov = (xyz3) -> (origin.x == xyz3.x && origin.y == xyz3.y && origin.z == xyz3.z) ? newopa - oldopa : 0;
+				ConeTracer26Nbs.traceChangeCone2(source, offset, range2, this::getOpacity, cprov, consu2);
 			}
 		};
 		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getOpacity, consu1);
@@ -145,34 +151,32 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
 
-	private float getOpacity(int x, int y, int z) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
-		this.gettermutpos.set(x, y, z);
+	private float getOpacity(Vector3i xyz) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
+		this.gettermutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState blockState = this.getState(gettermutpos);
 		return getOpacity(blockState, gettermutpos) == 15 ? 0 : 1;
 	}
 
-	private void updateLight(int x, int y, int z, float visi, float alpha, double dist, float oldemit, float newemit) {
-		updateLight(BlockPos.asLong(x, y, z), visi, alpha, dist, oldemit, newemit);
+	private void updateLight(int x, int y, int z, float visi, float changevisi, float alpha, double dist, float oldemit, float newemit) {
+		updateLight(BlockPos.asLong(x, y, z), visi, changevisi, alpha, dist, oldemit, newemit);
 	}
 
-	private void updateLight(long longpos, float visi, float alpha, double dist, float oldemit, float newemit) {
-		if (alpha == 0) {
+	private void updateLight(long longpos, float visi, float changevisi, float alpha, double dist, float oldemit, float newemit) {
+		if (alpha == 0 && changevisi == 0) {
 			return;
 		}
+		visi *= alpha;
 		// visi *= alpha; //if alpha ever become different than 0 or 1
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
 		visi /= dist;
-		int nival = (int) Math.clamp(visi * newemit - 0.5, 0, 15);
-		int oival = (int) Math.clamp(visi * oldemit - 0.5, 0, 15);
+		float oldvisi = visi - changevisi;
+		int oival = Math.clamp((int) (oldvisi * oldemit - 0.5), 0, 15);
+		int nival = Math.clamp((int) (visi * newemit - 0.5), 0, 15);
 
 		// this.storage.isValid(longpos);
 		this.storage.addStoredLevel(longpos, -oival + nival);
-
-		// lval/dist>1
-		// lval>dist
-
 	}
 
 	// public final int getEmission(long packedPos, BlockState state) {
