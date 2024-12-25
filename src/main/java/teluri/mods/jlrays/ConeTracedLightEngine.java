@@ -15,9 +15,9 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
-import teluri.mods.jlrays.ConeTracer26Nbs.IChangeAlphaProvider;
+import teluri.mods.jlrays.ConeTracer26Nbs.IAlphaProvider;
 import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
-import teluri.mods.jlrays.ConeTracer26Nbs.ISightUpdateConsumer2;
+import teluri.mods.jlrays.ConeTracer26Nbs.ISightUpdateConsumer3;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 
 public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
@@ -67,7 +67,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
 			long packedemit = changeQueue.dequeueLong();
-			this.checkNode(packedpos, packedemit);
+			this.updateBlock(packedpos, packedemit);
 		}
 		this.changeQueue.clear();
 		this.blockNodesToCheck.clear();
@@ -77,63 +77,59 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return 0; // return value is unused anyway
 	}
 
-	protected void checkNode(long packedPos, long packedEmit) { // if it reach there it mean the change was non trivial anyway
+	protected void updateBlock(long packedPos, long packedEmit) { // if it reach there it mean the change was non trivial anyway
 		long secpos = SectionPos.blockToSection(packedPos);
-		this.mutablePos.set(packedPos);
+		mutablePos.set(packedPos);
+		Vector3i vpos = new Vector3i(mutablePos.getX(), mutablePos.getY(), mutablePos.getZ());
 
 		int oldemit = (int) (packedEmit >>> 32);
 		int newemit = (int) (packedEmit & Integer.MAX_VALUE);
 
-		if (this.storage.storingLightForSection(secpos)) {
-			BlockState blockState = this.getState(mutablePos);
-			int newopacity = getOpacity(blockState, mutablePos) == 15 ? 0 : 1; // 1 == air
-			int oldlval = Integer.signum(this.storage.getStoredLevel(packedPos)); // !=0 mean air
-			this.updateLight(packedPos, 1, 0, 1, 1, oldemit, newemit);
-			int opadiff = newopacity - oldlval;
-			if (opadiff != 0) {
-				UpdateLightForOpacityChange(mutablePos, oldlval, newopacity);
+		if (storage.storingLightForSection(secpos)) {
+			BlockState blockState = getState(mutablePos);
+			int newopacity = getAlpha(blockState, mutablePos);
+			int oldopacity = storage.getStoredLevel(packedPos) == 0 ? 0 : 1; // !=0 mean air
+			if (newopacity != oldopacity) {
+				UpdateLightForOpacityChange(vpos, oldopacity, newopacity);
 			}
 			if (oldemit != 0 || newemit != 0) {
-				UpdateLightForSourceChanges(mutablePos, oldemit, newemit);
+				if (newopacity != 0) {
+					updateLight(vpos, oldopacity, 1, 1, oldemit, newemit);
+				}
+				UpdateLightForSourceChanges(vpos, oldemit, newemit);
+			}
+			if (newopacity == 0) {
+				storage.setStoredLevel(mutablePos.asLong(), 0);
 			}
 		}
 	}
 
-	public void UpdateLightForSourceChanges(BlockPos pos, int oldemit, int newemit) {
-		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-
-		ISightConsumer consu = (xyz, visi, alpha, dist) -> updateLight(xyz.x, xyz.y, xyz.z, visi, 0, alpha, dist, oldemit, newemit);
-		ConeTracer26Nbs.traceAllCones(source, RANGE, this::getOpacity, consu);
+	public void UpdateLightForSourceChanges(Vector3i source, int oldemit, int newemit) {
+		ISightConsumer consu = (xyz, visi, alpha, dist) -> {
+			visi *= alpha;
+			updateLight(xyz, visi, visi, dist, oldemit, newemit);
+		};
+		ConeTracer26Nbs.traceAllCones(source, RANGE, this::getAlpha, consu);
 	}
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
 
-	public void UpdateLightForOpacityChange(BlockPos pos, int oldopa, int newopa) {
-		Vector3i origin = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
-		Vector3i tmp = new Vector3i();
-
-		ISightConsumer consu1 = (sou, souVisi, alpha, dist) -> {
-			this.gettermutpos2.set(sou.x, sou.y, sou.z);
+	public void UpdateLightForOpacityChange(Vector3i origin, int oldopa, int newopa) {
+		ISightConsumer consu1 = (source, souVisi, alpha, dist) -> {
+			this.gettermutpos2.set(source.x, source.y, source.z);
 			BlockState blockState = this.getState(gettermutpos2);
 			int sourceEmit = blockState.getLightEmission();
-			if (sourceEmit != 0 && dist <= sourceEmit) { // if is a source and is in range
-				int range2 = RANGE;
+			if (sourceEmit != 0 && dist <= RANGE) { // if is a source and is in range
 
-				ISightUpdateConsumer2 consu2 = (xyz2, visi2, changevisi, alpha2, dist2) -> {
-					if (changevisi == 0) {
-						return;
-					}
-					updateLight(xyz2.x, xyz2.y, xyz2.z, visi2, changevisi, alpha2, dist2, sourceEmit, sourceEmit);
+				ISightUpdateConsumer3 consu2 = (xyz2, ovisi, nvisi, dist2) -> {
+					updateLight(xyz2, ovisi, nvisi, dist2, sourceEmit, sourceEmit);
 				};
-				// consu2.consume(origin.x, origin.y, origin.z, souVisi, newopa - oldopa, 1, dist);
-
-				Vector3i offset = new Vector3i(origin).sub(sou);
-				Vector3i source = tmp.set(sou);
-				IChangeAlphaProvider cprov = (xyz3) -> (origin.x == xyz3.x && origin.y == xyz3.y && origin.z == xyz3.z) ? newopa - oldopa : 0;
-				ConeTracer26Nbs.traceChangeCone2(source, offset, range2, this::getOpacity, cprov, consu2);
+				Vector3i offset = new Vector3i(origin).sub(source);
+				IAlphaProvider oaprov = (xyz3) -> getOldOpacity(xyz3, origin, oldopa);
+				ConeTracer26Nbs.traceChangeCone2(source, offset, RANGE, oaprov, this::getAlpha, consu2);
 			}
 		};
-		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getOpacity, consu1);
+		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getAlpha, consu1);
 	}
 
 	@Override
@@ -143,7 +139,8 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		if (lightChunk != null) {
 			lightChunk.findBlockLightSources((blockPos, blockState) -> {
 				int i = blockState.getLightEmission();
-				this.UpdateLightForSourceChanges(blockPos, 0, i);
+				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+				this.UpdateLightForSourceChanges(vpos, 0, i);
 				this.storage.assertValidity(blockPos.asLong());
 			});
 		}
@@ -151,31 +148,36 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
 
-	private float getOpacity(Vector3i xyz) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
+	private float getAlpha(Vector3i xyz) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
 		this.gettermutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState blockState = this.getState(gettermutpos);
-		return getOpacity(blockState, gettermutpos) == 15 ? 0 : 1;
+		return getAlpha(blockState, gettermutpos);
 	}
 
-	private void updateLight(int x, int y, int z, float visi, float changevisi, float alpha, double dist, float oldemit, float newemit) {
-		updateLight(BlockPos.asLong(x, y, z), visi, changevisi, alpha, dist, oldemit, newemit);
+	protected int getAlpha(BlockState blockState, BlockPos blockPos) {
+		return getOpacity(blockState, blockPos) == 1 ? 1 : 0;
 	}
 
-	private void updateLight(long longpos, float visi, float changevisi, float alpha, double dist, float oldemit, float newemit) {
-		if (alpha == 0 && changevisi == 0) {
-			return;
+	private float getOldOpacity(Vector3i xyz, Vector3i changed, float changedopa) {
+		if (xyz.equals(changed.x, changed.y, changed.z)) {
+			return changedopa;
 		}
-		visi *= alpha;
-		// visi *= alpha; //if alpha ever become different than 0 or 1
+		return getAlpha(xyz);
+	}
+
+	private void updateLight(Vector3i xyz, float ovisi, float nvisi, double dist, float oldemit, float newemit) {
+		updateLight(BlockPos.asLong(xyz.x, xyz.y, xyz.z), ovisi, nvisi, dist, oldemit, newemit);
+	}
+
+	private void updateLight(long longpos, float ovisi, float nvisi, double dist, float oldemit, float newemit) {
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
-		visi /= dist;
-		float oldvisi = visi - changevisi;
-		int oival = Math.clamp((int) (oldvisi * oldemit - 0.5), 0, 15);
-		int nival = Math.clamp((int) (visi * newemit - 0.5), 0, 15);
+		ovisi /= dist;
+		nvisi /= dist;
+		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi * oldemit - 0.5), 0, 15);
+		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi * newemit - 0.5), 0, 15);
 
-		// this.storage.isValid(longpos);
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
 

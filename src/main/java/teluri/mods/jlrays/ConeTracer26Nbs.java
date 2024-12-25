@@ -115,14 +115,14 @@ public class ConeTracer26Nbs {
 		}
 	}
 
-	public static void traceChangeCone2(Vector3i source, Vector3i offset, int range, IAlphaProvider aprov, IChangeAlphaProvider cprov, ISightUpdateConsumer2 vcons) {
+	public static void traceChangeCone2(Vector3i source, Vector3i offset, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer3 vcons) {
 		Vector3i vtmp = new Vector3i();
 		for (Cone cone : CONES) {
 			int comp1 = sum(vtmp.set(offset).mul(cone.axis1));
 			int comp2 = sum(vtmp.set(offset).mul(cone.axis2));
 			int comp3 = sum(vtmp.set(offset).mul(cone.axis3));
 			if (0 <= comp1 && 0 <= comp2 && 0 <= comp3 && comp2 <= comp1 && comp3 <= comp2) {
-				traceConeWithChange(source, range, cone, aprov, cprov, vcons);
+				traceConeWithChange2(source, range, cone, oaprov, naprov, vcons);
 			}
 		}
 	}
@@ -157,7 +157,6 @@ public class ConeTracer26Nbs {
 					if (visi <= 0) {
 						continue;
 					}
-					visi = Math.clamp(visi, 0, 1);
 					xyz.set(cone.axis3).mul(it3).add(vit2).add(origin); // world position
 
 					float alpha = aprov.get(xyz);
@@ -170,7 +169,7 @@ public class ConeTracer26Nbs {
 					}
 
 					if (alpha == 0) {
-						vbuffer[index] = -0.0f;// below zero values mean shadows are larger around edges
+						vbuffer[index] = 0;// below zero values mean shadows are larger around edges
 						continue;
 					}
 					nonzero = true;
@@ -281,6 +280,7 @@ public class ConeTracer26Nbs {
 
 	}
 
+	@Deprecated
 	public static void traceConeWithChange(Vector3i origin, int range, Cone cone, IAlphaProvider aprov, IChangeAlphaProvider cprov, ISightUpdateConsumer2 vcons) {
 		final Vector3i vit1 = new Vector3i(); // this is a nature friendly place here, we recycle our objects
 		final Vector3i vit2 = new Vector3i();
@@ -370,6 +370,87 @@ public class ConeTracer26Nbs {
 
 	}
 
+	public static void traceConeWithChange2(Vector3i origin, int range, Cone cone, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer3 vcons) {
+		final Vector3i vit1 = new Vector3i(); // this is a nature friendly place here, we recycle our objects
+		final Vector3i vit2 = new Vector3i();
+		final Vector3i xyz = new Vector3i();
+		if (range <= 0) {
+			return;
+		}
+
+		int size = range + 2;
+
+		// store the visibility values
+		float[] ovbuffer = new float[size * size];
+		float[] nvbuffer = new float[size * size];
+		nvbuffer[0] = ovbuffer[0] = 1;
+		nvbuffer[size] = ovbuffer[size] = 1;
+		nvbuffer[size + 1] = ovbuffer[size + 1] = 1;
+
+		// iterate from source to range (it1)
+		for (int it1 = 1; it1 <= range; it1++) { // start at 1 to skip source
+			vit1.set(cone.axis1).mul(it1);
+			boolean nonzero = false;
+			float totinv = 1f / (it1 + 1);
+			for (int it2 = it1; 0 <= it2; it2--) {// start from the end to handle vbuffer values turnover easily
+				vit2.set(cone.axis2).mul(it2).add(vit1);
+				for (int it3 = it2; 0 <= it3; it3--) { // same than it2
+					int index = (it2 * size) + it3;
+					float ovisi = ovbuffer[index];
+					float nvisi = nvbuffer[index];
+					if (ovisi <= 0 && nvisi <= 0) {
+						continue;
+					}
+
+					xyz.set(cone.axis3).mul(it3).add(vit2).add(origin); // world position
+
+					float oalpha = oaprov.get(xyz);
+					float nalpha = naprov.get(xyz);
+
+					// skip if doesnt have to output the edge (false==should output the edge)
+					if (!((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3))) {
+						// light effects and output
+						if (oalpha != 0 || nalpha != 0) {
+							double dist = 1 + Vector3f.lengthSquared(it1 * 0.3f, it2 * 0.3f, it3 * 0.3f);
+							vcons.consume(xyz, ovisi * oalpha, nvisi * nalpha, dist);
+						}
+					}
+
+					// weights
+					int w1 = it1 + 1 - it2;
+					int w2 = it2 + 1 - it3;
+					int w3 = it3 + 1;
+
+					if (oalpha == 0) {
+						ovbuffer[index] = 0;
+					} else {
+						nonzero = true;
+
+						ovisi *= totinv * oalpha;
+						ovbuffer[index] = ovisi * w1;
+						ovbuffer[index + size] += ovisi * w2;
+						ovbuffer[index + size + 1] += ovisi * w3;
+					}
+
+					if (nalpha == 0) {
+						nvbuffer[index] = 0;
+					} else {
+						nonzero = true;
+
+						nvisi *= totinv * nalpha;
+						nvbuffer[index] = nvisi * w1;
+						nvbuffer[index + size] += nvisi * w2;
+						nvbuffer[index + size + 1] += nvisi * w3;
+					}
+				}
+			}
+			if (!nonzero) { // if no block was visible on the whole current plane, it mean none will be later
+				return;
+			}
+		}
+
+	}
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	@FunctionalInterface
 	public static interface IAlphaProvider { // or opacity, but alpha is shorter. 0=opaque, 1=air
@@ -394,6 +475,11 @@ public class ConeTracer26Nbs {
 	@FunctionalInterface
 	public static interface ISightUpdateConsumer2 { // or visibility, but sight is shorter
 		void consume(Vector3i xyz, float visi, float changevisi, float alpha, double distance);
+	}
+
+	@FunctionalInterface
+	public static interface ISightUpdateConsumer3 { // or visibility, but sight is shorter
+		void consume(Vector3i xyz, float ovisi, float nvisi, double distance);
 	}
 
 	private static record Cone(// signed iteration cone
