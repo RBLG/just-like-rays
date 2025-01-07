@@ -155,7 +155,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	}
 
 	protected int getAlpha(BlockState blockState, BlockPos blockPos) {
-		return getOpacity(blockState, blockPos) == 1 ? 1 : 0;
+		return getOpacity(blockState) == 1 ? 1 : 0;
 	}
 
 	private float getOldOpacity(Vector3i xyz, Vector3i changed, float changedopa) {
