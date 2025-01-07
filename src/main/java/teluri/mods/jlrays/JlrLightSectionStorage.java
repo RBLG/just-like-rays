@@ -23,30 +23,9 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		y = SectionPos.sectionRelative(BlockPos.getY(levelPos));
 		z = SectionPos.sectionRelative(BlockPos.getZ(levelPos));
 		// return dataLayer == null ? 0 : Math.clamp(dataLayer.get(x, y, z), 0, 15);
-		return dataLayer == null ? 0 : (int) tonemap(dataLayer.get(x, y, z), 15, 15);
+		return dataLayer == null ? 0 : dataLayer.get(x, y, z);
 		// return dataLayer == null ? 0 : cheapTonemap(dataLayer.get(x, y, z) >>> 1);
 		// return dataLayer == null ? 0 : (int) extendedTonemap(dataLayer.get(x, y, z) >>> 1, 255, 1);
-	}
-
-	public static float tonemap(float value, float one, float one2) {
-		return Math.min(value / (one + value) * one2 * 1.3f, 15);
-	}
-
-	public static float extendedTonemap(float value, float white, float one) {
-		float v = value;
-		float numerator = v * (1.0f + (v / white * white));
-		float result = numerator / (1.0f + v);
-		return Math.min(result * one, 15);
-	}
-
-	public static int cheapTonemap(int value) {
-		if (value <= 13) {
-			return value;
-		} else if (value <= 30) {
-			return 14;
-		} else {
-			return 15;
-		}
 	}
 
 	@Override
@@ -74,6 +53,22 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 			dataLayer.set(x, y, z, dataLayer.get(x, y, z) + lightLevel);
 		}
 		SectionPos.aroundAndAtBlockPos(levelPos, this.sectionsAffectedByLightUpdates::add);
+	}
+
+	public int getFullStoredLevel(long levelPos) {
+		long l = SectionPos.blockToSection(levelPos);
+		DataLayer dataLayer = (ByteDataLayer) this.getDataLayer(l, true);
+
+		int x, y, z;
+		x = SectionPos.sectionRelative(BlockPos.getX(levelPos));
+		y = SectionPos.sectionRelative(BlockPos.getY(levelPos));
+		z = SectionPos.sectionRelative(BlockPos.getZ(levelPos));
+		if (dataLayer instanceof ByteDataLayer) {
+			return ((ByteDataLayer) dataLayer).getFull(x, y, z);
+		} else {
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt a ByteSizeLayer");
+			return dataLayer.get(x, y, z);
+		}
 	}
 
 	public static final class JlrDataLayerStorageMap extends DataLayerStorageMap<JlrLightSectionStorage.JlrDataLayerStorageMap> {

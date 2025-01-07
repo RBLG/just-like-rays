@@ -21,6 +21,10 @@ repositories {
          name = 'ParchmentMC'
          url = 'https://maven.parchmentmc.org'
     }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
 }
 
 loom {
@@ -47,8 +51,9 @@ dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	//modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
+	//modImplementation "maven.modrinth:sodium:mc1.21.1-0.6.5-fabric"
 }
 
 processResources {
@@ -109,7 +114,7 @@ modrinth {
         // scope.type
         // The scope can be `required`, `optional`, `incompatible`, or `embedded`
         // The type can either be `project` or `version`
-        required.project "fabric-api" // Creates a new required dependency on Fabric API
-        //optional.version "sodium", "mc1.19.3-0.4.8" // Creates a new optional dependency on this specific version of Sodium
+        //required.project "fabric-api" // Creates a new required dependency on Fabric API
+        //optional.project "sodium" // Creates a new optional dependency on this specific version of Sodium
     }
 }
