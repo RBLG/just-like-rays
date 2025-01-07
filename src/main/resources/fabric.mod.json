@@ -5,7 +5,7 @@
 	"name": "Just Like Rays",
 	"description": "Make light sources lit the environment in a more realistic way",
 	"authors": [
-		"A huge nerd"
+		"Teluri"
 	],
 	"contact": {
 		"homepage": "https://modrinth.com/mod/just-like-rays",
@@ -31,7 +31,7 @@
 	],
 	"depends": {
 		"fabricloader": ">=0.16.7",
-		"minecraft": "~1.21.1",
+		"minecraft": "~1.21.4",
 		"java": ">=21"
 	},
 	"accessWidener" : "yeet.accesswidener"
