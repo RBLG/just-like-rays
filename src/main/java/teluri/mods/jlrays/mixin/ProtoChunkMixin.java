@@ -23,28 +23,15 @@ import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 
 @Mixin(ProtoChunk.class)
 public abstract class ProtoChunkMixin extends ChunkAccess {
-	//@Shadow
-	//private volatile LevelLightEngine lightEngine;
 
 	@WrapOperation(method = "setBlockState*", //
 			at = @At(value = "INVOKE", //
 					target = "net/minecraft/world/level/lighting/LevelLightEngine.checkBlock(Lnet/minecraft/core/BlockPos;)V"))
 	public void HijackRemoveCheckNode(LevelLightEngine instance, BlockPos pos, Operation<Void> original, @Local(ordinal = 1) BlockState blockState, @Local(ordinal = 0) BlockState state) {
-		original.call(instance, new ShinyBlockPos(pos, blockState, state)); //removed and replaced in the other mixin
+		original.call(instance, new ShinyBlockPos(pos, blockState, state)); // removed and replaced in the other mixin
 	}
 
-//	@WrapOperation(method = "setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Z)Lnet/minecraft/world/level/block/state/BlockState;", //
-//			at = @At(value = "INVOKE", //
-//					target = "net/minecraft/world/level/lighting/LightEngine.hasDifferentLightProperties(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
-//	public boolean HijackReAddCheckNode(BlockGetter level, BlockPos pos, BlockState state1, BlockState state2, Operation<Boolean> original) {
-//		boolean rtn = original.call(level, pos, state1, state2);
-//		if (rtn) {
-//			this.lightEngine.checkBlock(new ShinyBlockPos(pos, state1, state2));
-//		}
-//		return rtn;
-//	}
-	
-
+	////////////////////// java fakery
 	public ProtoChunkMixin(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry<Biome> biomeRegistry, long inhabitedTime,
 			LevelChunkSection[] sections, BlendingData blendingData) {
 		super(chunkPos, upgradeData, levelHeightAccessor, biomeRegistry, inhabitedTime, sections, blendingData);

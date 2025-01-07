@@ -26,8 +26,6 @@ import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 @Debug
 @Mixin(LevelChunk.class)
 public abstract class LevelChunkMixin extends ChunkAccess {
-	// @Shadow
-	// final Level level;
 
 	@WrapOperation(method = "setBlockState*", //
 			at = @At(value = "INVOKE", //
@@ -36,19 +34,7 @@ public abstract class LevelChunkMixin extends ChunkAccess {
 		original.call(instance, new ShinyBlockPos(pos, blockState, state));
 	}
 
-	// @WrapOperation(method = "setBlockState*", //
-	// at = @At(value = "INVOKE", //
-	// target =
-	// "net/minecraft/world/level/lighting/LightEngine.hasDifferentLightProperties(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
-	// public boolean HijackReAddCheckNode(BlockState state1, BlockState state2, Operation<Boolean> original) {
-	// boolean rtn = original.call(state1, state2);
-	// if (rtn) {
-	// this.level.getChunkSource().getLightEngine().checkBlock(new ShinyBlockPos(pos, state1, state2));
-	// }
-	// return rtn;
-	// }
-
-	//////////////////////////////////////////////////////////////////////////
+	//////////////////////java fakery
 	public LevelChunkMixin(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry<Biome> biomeRegistry, long inhabitedTime,
 			LevelChunkSection[] sections, BlendingData blendingData, Level nlevel) {
 		super(chunkPos, upgradeData, levelHeightAccessor, biomeRegistry, inhabitedTime, sections, blendingData);
