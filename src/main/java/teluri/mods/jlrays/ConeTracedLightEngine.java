@@ -88,7 +88,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		if (storage.storingLightForSection(secpos)) {
 			BlockState blockState = getState(mutablePos);
 			int newopacity = getAlpha(blockState, mutablePos);
-			int oldopacity = storage.getStoredLevel(packedPos) == 0 ? 0 : 1; // !=0 mean air
+			int oldopacity = storage.getFullStoredLevel(packedPos) == 0 ? 0 : 1; // !=0 mean air
 			if (newopacity != oldopacity) {
 				UpdateLightForOpacityChange(vpos, oldopacity, newopacity);
 			}
@@ -141,7 +141,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 				int i = blockState.getLightEmission();
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				this.UpdateLightForSourceChanges(vpos, 0, i);
-				this.storage.assertValidity(blockPos.asLong());
+				//this.storage.assertValidity(blockPos.asLong());
 			});
 		}
 	}

@@ -8,10 +8,10 @@
 		"A huge nerd"
 	],
 	"contact": {
-		"homepage": "todo",
-		"sources": "todo"
+		"homepage": "https://modrinth.com/mod/just-like-rays",
+		"sources": "https://github.com/RBLG/just-like-rays"
 	},
-	"license": "CC0-1.0",
+	"license": " ",
 	"icon": "assets/just-like-rays/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -32,11 +32,7 @@
 	"depends": {
 		"fabricloader": ">=0.16.7",
 		"minecraft": "~1.21.1",
-		"java": ">=21",
-		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
+		"java": ">=21"
 	},
 	"accessWidener" : "yeet.accesswidener"
 }

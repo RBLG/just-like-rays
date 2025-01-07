@@ -1,8 +1,6 @@
 package teluri.mods.jlrays;
 
 import net.fabricmc.api.ModInitializer;
-import net.minecraft.world.level.block.Blocks;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,6 +11,6 @@ public class JustLikeRays implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		Blocks.LAVA.defaultBlockState();
+		//Blocks.LAVA.defaultBlockState();
 	}
 }
