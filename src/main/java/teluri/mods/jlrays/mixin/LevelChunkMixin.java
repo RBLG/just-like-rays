@@ -23,10 +23,17 @@ import net.minecraft.world.level.levelgen.blending.BlendingData;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 
+/**
+ * @author RBLG
+ * @since v0.0.1
+ */
 @Debug
 @Mixin(LevelChunk.class)
 public abstract class LevelChunkMixin extends ChunkAccess {
 
+	/**
+	 * hide a ShinyBlockPos in the chain of checkBlock calls to be caught by the custom light engine
+	 */
 	@WrapOperation(method = "setBlockState*", //
 			at = @At(value = "INVOKE", //
 					target = "net/minecraft/world/level/lighting/LevelLightEngine.checkBlock(Lnet/minecraft/core/BlockPos;)V"))
@@ -34,7 +41,10 @@ public abstract class LevelChunkMixin extends ChunkAccess {
 		original.call(instance, new ShinyBlockPos(pos, blockState, state));
 	}
 
-	//////////////////////java fakery
+	/////////////////////////////////////
+	/**
+	 * fake constructor to satisfy java compiler
+	 */
 	public LevelChunkMixin(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry<Biome> biomeRegistry, long inhabitedTime,
 			LevelChunkSection[] sections, BlendingData blendingData, Level nlevel) {
 		super(chunkPos, upgradeData, levelHeightAccessor, biomeRegistry, inhabitedTime, sections, blendingData);

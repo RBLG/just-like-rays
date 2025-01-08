@@ -3,6 +3,12 @@ package teluri.mods.jlrays;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
+/**
+ * handle logic of the 3D 26 neigbors GBV algorithm
+ * 
+ * @author RBLG
+ * @since v0.0.1
+ */
 public class ConeTracer26Nbs {
 
 	private static final int[] SIGNS = new int[] { 1, -1 };
@@ -25,6 +31,9 @@ public class ConeTracer26Nbs {
 	// all 48 signed cones
 	private static final Cone[] CONES = genCones();
 
+	/**
+	 * generates data for the 48 different cones
+	 */
 	private static Cone[] genCones() {
 		Cone[] ncones = new Cone[48];
 		int index = 0;
@@ -115,6 +124,15 @@ public class ConeTracer26Nbs {
 		}
 	}
 
+	/**
+	 * 
+	 * @param source
+	 * @param offset
+	 * @param range  max range for light updates
+	 * @param oaprov old alpha provider
+	 * @param naprov new alpha provider
+	 * @param vcons  visibility data consumer
+	 */
 	public static void traceChangeCone2(Vector3i source, Vector3i offset, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer3 vcons) {
 		Vector3i vtmp = new Vector3i();
 		for (Cone cone : CONES) {
@@ -195,7 +213,7 @@ public class ConeTracer26Nbs {
 	}
 
 	/**
-	 * compute visibility (and light received) over one cone
+	 * compute visibility (and light received) over the cone of changes caused by an opacity change of one block over one source
 	 * 
 	 * @param origin:   origin of the cone
 	 * @param offset:   offset between the origin and the source, components are sorted and absolute

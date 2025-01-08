@@ -3,8 +3,6 @@ package teluri.mods.jlrays;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3i;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -20,21 +18,32 @@ import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
 import teluri.mods.jlrays.ConeTracer26Nbs.ISightUpdateConsumer3;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 
+/**
+ * handle light updates logic
+ * 
+ * @author RBLG
+ * @since v0.0.1
+ */
 public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
+	// max range that can be updated by a light update.
+	// a value above 15 will cause issues until the generation pyramid and loaded chunk borders logic is changed to handle more than adjacent chunks
 	public static final int RANGE = 20;
 
 	private final MutableBlockPos mutablePos = new MutableBlockPos();
+	// queue of block updates. use a FIFO queue but it could probably use a hash like vanilla (would require logic to handle merging two updates on the same pos)
 	private final LongArrayFIFOQueue changeQueue = new LongArrayFIFOQueue();
 
 	public ConeTracedLightEngine(LightChunkGetter chunkSource) {
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
 	}
 
-	@VisibleForTesting
-	public ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
+	protected ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 	}
 
+	/**
+	 * fired when a block update happen. will read the previous and current blockstate hidden in the shiny blockpos and queue the change for a light update
+	 */
 	@Override
 	public void checkBlock(BlockPos pos) {
 		long packed = 0;
@@ -59,6 +68,9 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return !this.changeQueue.isEmpty() || super.hasLightWork();
 	}
 
+	/**
+	 * applies all updates in the queue
+	 */
 	@Override
 	public int runLightUpdates() {
 		if (changeQueue.size() > 8) { // TODO should be 2?
@@ -77,6 +89,12 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return 0; // return value is unused anyway
 	}
 
+	/**
+	 * trigger a source update and/or an opacity update if required on a block change
+	 * 
+	 * @param packedPos
+	 * @param packedEmit
+	 */
 	protected void updateBlock(long packedPos, long packedEmit) { // if it reach there it mean the change was non trivial anyway
 		long secpos = SectionPos.blockToSection(packedPos);
 		mutablePos.set(packedPos);
@@ -104,6 +122,13 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		}
 	}
 
+	/**
+	 * handle change of emition intensity on block update
+	 * 
+	 * @param source  position of the block update
+	 * @param oldemit previous emition intensity
+	 * @param newemit current emition intensity
+	 */
 	public void UpdateLightForSourceChanges(Vector3i source, int oldemit, int newemit) {
 		ISightConsumer consu = (xyz, visi, alpha, dist) -> {
 			visi *= alpha;
@@ -114,6 +139,13 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
 
+	/**
+	 * handle change of opacity on block update
+	 * 
+	 * @param origin position of the block update
+	 * @param oldopa
+	 * @param newopa
+	 */
 	public void UpdateLightForOpacityChange(Vector3i origin, int oldopa, int newopa) {
 		ISightConsumer consu1 = (source, souVisi, alpha, dist) -> {
 			this.gettermutpos2.set(source.x, source.y, source.z);
@@ -132,6 +164,9 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getAlpha, consu1);
 	}
 
+	/**
+	 * in a chunk, compute all emition for each sources in the chunk
+	 */
 	@Override
 	public void propagateLightSources(ChunkPos chunkPos) {
 		this.setLightEnabled(chunkPos, true);
@@ -141,13 +176,16 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 				int i = blockState.getLightEmission();
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				this.UpdateLightForSourceChanges(vpos, 0, i);
-				//this.storage.assertValidity(blockPos.asLong());
+				// this.storage.assertValidity(blockPos.asLong());
 			});
 		}
 	}
 
 	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
 
+	/**
+	 * get the alpha value of a block (aka transparency, aka the oposite of opacity) 0= opaque, 1= transparent (wait did i got the concept wrong?)
+	 */
 	private float getAlpha(Vector3i xyz) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
 		this.gettermutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState blockState = this.getState(gettermutpos);
@@ -158,6 +196,14 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return getOpacity(blockState) == 1 ? 1 : 0;
 	}
 
+	/**
+	 * get tha alpha value at a coordinate <br>
+	 * but if at a coordinate where the change given happenned, look at the stored light level to deduce what the previous opacity was
+	 * 
+	 * @param xyz        the current position that is evaluated
+	 * @param changed    the position of the change
+	 * @param changedopa the previous alpha value
+	 */
 	private float getOldOpacity(Vector3i xyz, Vector3i changed, float changedopa) {
 		if (xyz.equals(changed.x, changed.y, changed.z)) {
 			return changedopa;
@@ -169,6 +215,15 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		updateLight(BlockPos.asLong(xyz.x, xyz.y, xyz.z), ovisi, nvisi, dist, oldemit, newemit);
 	}
 
+	/**
+	 * update the light level value of a block based on given visibility and emition changes
+	 * @param longpos position packed as a long
+	 * @param ovisi   old visibility value
+	 * @param nvisi   new visibility value
+	 * @param dist    distance to the source
+	 * @param oldemit old emition value
+	 * @param newemit new emition value
+	 */
 	private void updateLight(long longpos, float ovisi, float nvisi, double dist, float oldemit, float newemit) {
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
@@ -181,11 +236,9 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
 
-	// public final int getEmission(long packedPos, BlockState state) {
-	// int i = state.getLightEmission();
-	// return i > 0 && this.storage.lightOnInSection(SectionPos.blockToSection(packedPos)) ? i : 0;
-	// }
-
+	/**
+	 * receive light level data on loading chunks
+	 */
 	@Override
 	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
 		if (data != null && !(data instanceof ByteDataLayer)) {

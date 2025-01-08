@@ -9,6 +9,12 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.DataLayerStorageMap;
 import net.minecraft.world.level.lighting.LayerLightSectionStorage;
 
+/**
+ * implementation of LayerLightSectionStorage to make use of the new fancy effects of ByteDataLayer to be used by the custom light engine
+ * 
+ * @author RBLG
+ * @since v0.0.1
+ */
 public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSectionStorage.JlrDataLayerStorageMap> {
 	protected JlrLightSectionStorage(LightChunkGetter chunkSource) {
 		super(LightLayer.BLOCK, chunkSource, new JlrLightSectionStorage.JlrDataLayerStorageMap(new Long2ObjectOpenHashMap<>()));
@@ -81,6 +87,10 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		}
 	}
 
+	/**
+	 * check that a dataLayer at a position is a ByteDataLayer
+	 * @param blockPos
+	 */
 	public void assertValidity(long blockPos) {
 		long sectionPos = SectionPos.blockToSection(blockPos);
 		DataLayer layer = getDataLayer(sectionPos, false);

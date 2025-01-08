@@ -7,17 +7,38 @@ import org.joml.Math;
 import net.minecraft.Util;
 import net.minecraft.world.level.chunk.DataLayer;
 
+/**
+ * 
+ * handle custom data size for storing light level values
+ * 
+ * @author RBLG
+ * @since v0.0.1
+ */
 public class ByteDataLayer extends DataLayer {
+	// size of the array for a light level data size of 8bit
 	public static int BYTE_SIZED = 4096;
 
+	/**
+	 * instantiate empty
+	 */
 	public ByteDataLayer() {
 		super(0);
 	}
 
-	public ByteDataLayer(int size) {
-		super(size);
+	/**
+	 * instantiate empty with a default value
+	 * 
+	 * @param defaultvalue
+	 */
+	public ByteDataLayer(int defaultvalue) {
+		super(defaultvalue);
 	}
 
+	/**
+	 * instantiate with existing data
+	 * 
+	 * @param ndata
+	 */
 	public ByteDataLayer(byte[] ndata) {
 		super(0);
 		this.data = ndata;
@@ -26,25 +47,30 @@ public class ByteDataLayer extends DataLayer {
 		}
 	}
 
+	/**
+	 * get light level in the range 0..15
+	 */
 	@Override
 	public int get(int index) {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
-		return (int) ByteDataLayer.tonemap(getFull(index), 15, 15);
+		return (int) ToneMapperHelper.tonemap(getFull(index), 15, 15);
 	}
-	
+
 	public int getFull(int x, int y, int z) {
 		return getFull(getIndex(x, y, z));
 	}
 
+	/**
+	 * get light level in the full range (0..255)
+	 */
 	public int getFull(int index) {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
 		return data[index] & 0xFF; // cast to int as unsigned byte
 	}
-	
 
 	@Override
 	public void set(int index, int value) {
@@ -72,35 +98,13 @@ public class ByteDataLayer extends DataLayer {
 		this.add(getIndex(x, y, z), value);
 	}
 
+	/**
+	 * add to the stored light level (reduce the amount of operations compared to getting then setting)
+	 */
 	protected void add(int index, int value) {
 		byte[] bs = this.getData();
 		value += bs[index] & 0xFF; // cast to int as unsigned byte
 		bs[index] = (byte) Math.clamp(value, 0, 255);
 	}
-	
-	
 
-
-	public static float tonemap(float value, float one, float one2) {
-		return Math.min(value / (one + value) * one2 * 1.4f, 15);
-	}
-
-	public static float extendedTonemap(float value, float white, float one) {
-		float v = value;
-		float numerator = v * (1.0f + (v / white * white));
-		float result = numerator / (1.0f + v);
-		return Math.min(result * one, 15);
-	}
-
-	public static int cheapTonemap(int value) {
-		if (value <= 13) {
-			return value;
-		} else if (value <= 30) {
-			return 14;
-		} else {
-			return 15;
-		}
-	}
-	
-	
 }
