@@ -3,16 +3,17 @@ package teluri.mods.jlrays;
 import org.joml.Math;
 
 /**
+ * handles methods for tonemapping
+ * 
  * @author RBLG
  * @since v0.0.4
- * 
- * handles methods for tonemapping
  */
 public final class ToneMapperHelper {
 	private ToneMapperHelper() {}
-	
+
 	/**
 	 * reinhard tonemapping from https://64.github.io/tonemapping/#reinhard
+	 * 
 	 * @param define the scale of the input value (similar to dividing by "one" the input value)
 	 * @param define the scale of the output value (multiplies the output by "one2"
 	 */
@@ -29,7 +30,7 @@ public final class ToneMapperHelper {
 		float result = numerator / (1.0f + v);
 		return Math.min(result * one, 15);
 	}
-	
+
 	/**
 	 * cheap alternative to take advantage of the limited range of values
 	 */

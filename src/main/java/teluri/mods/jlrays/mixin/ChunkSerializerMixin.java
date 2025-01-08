@@ -9,9 +9,16 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 import teluri.mods.jlrays.ByteDataLayer;
 
+/**
+ * @author RBLG
+ * @since 
+ */
 @Mixin(SerializableChunkData.class)
 public class ChunkSerializerMixin {
 
+	/**
+	 * replace a call to the DataLayer(byte[]) to the ByteDataLayer equivalent at chunk loading
+	 */
 	@WrapOperation(// read(PoiManager,RegionStorageInfo,ChunkPos,CompoundTag)->ProtoChunk to parse(LevelHeightAccessor, RegistryAccess, CompoundTag)
 			method = "parse*", //
 			at = @At(value = "NEW", target = "([B)Lnet/minecraft/world/level/chunk/DataLayer;", ordinal = 0))

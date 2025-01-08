@@ -8,22 +8,37 @@ import net.minecraft.Util;
 import net.minecraft.world.level.chunk.DataLayer;
 
 /**
+ * 
+ * handle custom data size for storing light level values
+ * 
  * @author RBLG
  * @since v0.0.1
- * 
- * 
  */
 public class ByteDataLayer extends DataLayer {
+	// size of the array for a light level data size of 8bit
 	public static int BYTE_SIZED = 4096;
 
+	/**
+	 * instantiate empty
+	 */
 	public ByteDataLayer() {
 		super(0);
 	}
 
-	public ByteDataLayer(int size) {
-		super(size);
+	/**
+	 * instantiate empty with a default value
+	 * 
+	 * @param defaultvalue
+	 */
+	public ByteDataLayer(int defaultvalue) {
+		super(defaultvalue);
 	}
 
+	/**
+	 * instantiate with existing data
+	 * 
+	 * @param ndata
+	 */
 	public ByteDataLayer(byte[] ndata) {
 		super(0);
 		this.data = ndata;
@@ -32,6 +47,9 @@ public class ByteDataLayer extends DataLayer {
 		}
 	}
 
+	/**
+	 * get light level in the range 0..15
+	 */
 	@Override
 	public int get(int index) {
 		if (this.data == null) {
@@ -39,18 +57,20 @@ public class ByteDataLayer extends DataLayer {
 		}
 		return (int) ToneMapperHelper.tonemap(getFull(index), 15, 15);
 	}
-	
+
 	public int getFull(int x, int y, int z) {
 		return getFull(getIndex(x, y, z));
 	}
 
+	/**
+	 * get light level in the full range (0..255)
+	 */
 	public int getFull(int index) {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
 		return data[index] & 0xFF; // cast to int as unsigned byte
 	}
-	
 
 	@Override
 	public void set(int index, int value) {
@@ -78,10 +98,13 @@ public class ByteDataLayer extends DataLayer {
 		this.add(getIndex(x, y, z), value);
 	}
 
+	/**
+	 * add to the stored light level (reduce the amount of operations compared to getting then setting)
+	 */
 	protected void add(int index, int value) {
 		byte[] bs = this.getData();
 		value += bs[index] & 0xFF; // cast to int as unsigned byte
 		bs[index] = (byte) Math.clamp(value, 0, 255);
 	}
-	
+
 }
