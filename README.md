@@ -14,7 +14,6 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 
 - proper comments
 - make lava "opaque" (will improve worldgen lag)
-- reparalelize the GBV algorithm (also better perfs)
 - implement face based GBV algorithm (will fix light leaks, non-full blocks handling and +)
 - settings (radius, intensity, etc)
 
@@ -23,3 +22,4 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 - par face light level data instead of per block (make 1 block large corridors look much better)
 - tweaking the renderer to make use of the additionnal light level data
 - RGB light
+- paralelization of the GBV algorithm
