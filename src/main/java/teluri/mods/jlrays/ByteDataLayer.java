@@ -7,6 +7,12 @@ import org.joml.Math;
 import net.minecraft.Util;
 import net.minecraft.world.level.chunk.DataLayer;
 
+/**
+ * @author RBLG
+ * @since v0.0.1
+ * 
+ * 
+ */
 public class ByteDataLayer extends DataLayer {
 	public static int BYTE_SIZED = 4096;
 
@@ -31,7 +37,7 @@ public class ByteDataLayer extends DataLayer {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
-		return (int) ByteDataLayer.tonemap(getFull(index), 15, 15);
+		return (int) ToneMapperHelper.tonemap(getFull(index), 15, 15);
 	}
 	
 	public int getFull(int x, int y, int z) {
@@ -77,30 +83,5 @@ public class ByteDataLayer extends DataLayer {
 		value += bs[index] & 0xFF; // cast to int as unsigned byte
 		bs[index] = (byte) Math.clamp(value, 0, 255);
 	}
-	
-	
-
-
-	public static float tonemap(float value, float one, float one2) {
-		return Math.min(value / (one + value) * one2 * 1.4f, 15);
-	}
-
-	public static float extendedTonemap(float value, float white, float one) {
-		float v = value;
-		float numerator = v * (1.0f + (v / white * white));
-		float result = numerator / (1.0f + v);
-		return Math.min(result * one, 15);
-	}
-
-	public static int cheapTonemap(int value) {
-		if (value <= 13) {
-			return value;
-		} else if (value <= 30) {
-			return 14;
-		} else {
-			return 15;
-		}
-	}
-	
 	
 }
