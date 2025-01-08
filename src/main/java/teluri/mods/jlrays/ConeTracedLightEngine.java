@@ -3,8 +3,6 @@ package teluri.mods.jlrays;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3i;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -30,8 +28,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
 	}
 
-	@VisibleForTesting
-	public ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
+	protected ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 	}
 
