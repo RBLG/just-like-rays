@@ -192,8 +192,9 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 		return getAlpha(blockState, gettermutpos);
 	}
 
-	protected int getAlpha(BlockState blockState, BlockPos blockPos) {
-		return getOpacity(blockState) == 1 ? 1 : 0;
+	protected int getAlpha(BlockState state, BlockPos blockPos) {
+		// lightBlock is weird, 0..1 is transparent, 15 is opaque
+		return state.getLightBlock() <= 1 ? 1 : 0;
 	}
 
 	/**
@@ -217,6 +218,7 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 
 	/**
 	 * update the light level value of a block based on given visibility and emition changes
+	 * 
 	 * @param longpos position packed as a long
 	 * @param ovisi   old visibility value
 	 * @param nvisi   new visibility value

@@ -12,7 +12,6 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 
 ##### Todo/Roadmap:
 
-- make lava "opaque" (will improve worldgen lag)
 - implement face based GBV algorithm (will fix light leaks, non-full blocks handling and +)
 - settings (radius, intensity, etc)
 

@@ -26,3 +26,5 @@ accessible method net/minecraft/world/level/chunk/DataLayer getIndex (III)I
 
 mutable field net/minecraft/world/level/lighting/LevelLightEngine blockEngine Lnet/minecraft/world/level/lighting/LightEngine;
 
+mutable field net/minecraft/world/level/block/state/BlockBehaviour$BlockStateBase lightEmission I
+
