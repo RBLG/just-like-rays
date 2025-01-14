@@ -130,11 +130,11 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	 * @param newemit current emition intensity
 	 */
 	public void UpdateLightForSourceChanges(Vector3i source, int oldemit, int newemit) {
-		ISightConsumer consu = (xyz, visi, alpha, dist) -> {
+		NaiveFbGbvSightEngine.ISightConsumer consu = (xyz, visi, alpha, dist) -> {
 			visi *= alpha;
 			updateLight(xyz, visi, visi, dist, oldemit, newemit);
 		};
-		ConeTracer26Nbs.traceAllCones(source, RANGE, this::getAlpha, consu);
+		NaiveFbGbvSightEngine.traceAllQuadrants(source, RANGE, this::getAlpha, consu);
 	}
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
@@ -147,21 +147,21 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	 * @param newopa
 	 */
 	public void UpdateLightForOpacityChange(Vector3i origin, int oldopa, int newopa) {
-		ISightConsumer consu1 = (source, souVisi, alpha, dist) -> {
+		NaiveFbGbvSightEngine.ISightConsumer consu1 = (source, souVisi, alpha, dist) -> {
 			this.gettermutpos2.set(source.x, source.y, source.z);
 			BlockState blockState = this.getState(gettermutpos2);
 			int sourceEmit = blockState.getLightEmission();
 			if (sourceEmit != 0 && dist <= RANGE) { // if is a source and is in range
 
-				ISightUpdateConsumer3 consu2 = (xyz2, ovisi, nvisi, dist2) -> {
+				NaiveFbGbvSightEngine.ISightUpdateConsumer consu2 = (xyz2, ovisi, nvisi, dist2) -> {
 					updateLight(xyz2, ovisi, nvisi, dist2, sourceEmit, sourceEmit);
 				};
 				Vector3i offset = new Vector3i(origin).sub(source);
-				IAlphaProvider oaprov = (xyz3) -> getOldOpacity(xyz3, origin, oldopa);
-				ConeTracer26Nbs.traceChangeCone2(source, offset, RANGE, oaprov, this::getAlpha, consu2);
+				NaiveFbGbvSightEngine.IAlphaProvider oaprov = (xyz3) -> getOldOpacity(xyz3, origin, oldopa);
+				NaiveFbGbvSightEngine.traceAllChangedQuadrants(source, offset, RANGE, oaprov, this::getAlpha, consu2);
 			}
 		};
-		ConeTracer26Nbs.traceAllCones(origin, RANGE, this::getAlpha, consu1);
+		NaiveFbGbvSightEngine.traceAllQuadrants(origin, RANGE, this::getAlpha, consu1);
 	}
 
 	/**
