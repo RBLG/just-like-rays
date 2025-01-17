@@ -9,6 +9,7 @@ import org.joml.Vector3i;
  * @author RBLG
  * @since v0.0.1
  */
+@Deprecated
 public class Gbv26NbsSightEngine {
 
 	private static final int[] SIGNS = new int[] { 1, -1 };

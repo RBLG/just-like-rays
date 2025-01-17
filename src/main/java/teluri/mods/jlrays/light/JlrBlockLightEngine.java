@@ -1,6 +1,7 @@
 package teluri.mods.jlrays.light;
 
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
@@ -15,10 +16,9 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
-import teluri.mods.jlrays.light.Gbv26NbsSightEngine.IAlphaProvider;
-import teluri.mods.jlrays.light.Gbv26NbsSightEngine.ISightConsumer;
-import teluri.mods.jlrays.light.Gbv26NbsSightEngine.ISightUpdateConsumer3;
-import teluri.mods.jlrays.light.JlrLightSectionStorage.JlrDataLayerStorageMap;
+import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.IAlphaProvider;
+import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.ISightConsumer;
+import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.ISightUpdateConsumer;
 
 /**
  * handle light updates logic
@@ -55,7 +55,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			BlockState curr = rpos.current;
 			long oldemit = prev.getLightEmission();
 			long newemit = curr.getLightEmission();
-			packed = newemit + (oldemit << 32);
+			long oldopa = getAlpha(prev);
+			long newopa = getAlpha(curr);
+			packed = newemit | (oldemit << 16) | (newopa << 32) | (oldopa << 48);
 
 			this.blockNodesToCheck.add(pos.asLong());
 			this.changeQueue.enqueue(pos.asLong());
@@ -80,8 +82,14 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 		while (2 <= changeQueue.size()) {
 			long packedpos = changeQueue.dequeueLong();
-			long packedemit = changeQueue.dequeueLong();
-			this.updateBlock(packedpos, packedemit);
+			long packedEmit = changeQueue.dequeueLong();
+
+			int newemit = (int) packedEmit & 0xFFFF;
+			int oldemit = (int) (packedEmit >>> 16) & 0xFFFF;
+			int newopa = (int) (packedEmit >>> 32) & 0xFFFF;
+			int oldopa = (int) (packedEmit >>> 48) & 0xFFFF;
+
+			this.updateBlock(packedpos, oldemit, newemit, oldopa, newopa);
 		}
 		this.changeQueue.clear();
 		this.blockNodesToCheck.clear();
@@ -92,29 +100,24 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	}
 
 	/**
-	 * trigger a source update and/or an opacity update if required on a block change
+	 * trigger a source update and/or an opacity update if required on a block change<br>
+	 * if it reach there it mean the change was non trivial
 	 * 
 	 * @param packedPos
 	 * @param packedEmit
 	 */
-	protected void updateBlock(long packedPos, long packedEmit) { // if it reach there it mean the change was non trivial anyway
+	protected void updateBlock(long packedPos, int oldemit, int newemit, int oldopacity, int newopacity) {
 		long secpos = SectionPos.blockToSection(packedPos);
 		mutablePos.set(packedPos);
 		Vector3i vpos = new Vector3i(mutablePos.getX(), mutablePos.getY(), mutablePos.getZ());
 
-		int oldemit = (int) (packedEmit >>> 32);
-		int newemit = (int) (packedEmit & Integer.MAX_VALUE);
-
 		if (storage.storingLightForSection(secpos)) {
-			BlockState blockState = getState(mutablePos);
-			int newopacity = getAlpha(blockState, mutablePos);
-			int oldopacity = storage.getFullStoredLevel(packedPos) == 0 ? 0 : 1; // !=0 mean air
 			if (newopacity != oldopacity) {
 				UpdateLightForOpacityChange(vpos, oldopacity, newopacity);
 			}
 			if (oldemit != 0 || newemit != 0) {
 				if (newopacity != 0) {
-					updateLight(vpos, oldopacity, 1, 1, oldemit, newemit);
+					updateLight(vpos, vpos, oldopacity, newopacity, oldemit, newemit);
 				}
 				UpdateLightForSourceChanges(vpos, oldemit, newemit);
 			}
@@ -132,11 +135,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 * @param newemit current emition intensity
 	 */
 	public void UpdateLightForSourceChanges(Vector3i source, int oldemit, int newemit) {
-		NaiveFbGbvSightEngine.ISightConsumer consu = (xyz, visi, alpha, dist) -> {
-			visi *= alpha;
-			updateLight(xyz, visi, visi, dist, oldemit, newemit);
-		};
-		NaiveFbGbvSightEngine.traceAllQuadrants(source, RANGE, this::getAlpha, consu);
+		ISightConsumer consu = (xyz, visi) -> updateLight(source, xyz, visi, visi, oldemit, newemit);
+		NaiveFbGbvSightEngine.traceAllQuadrants(source, RANGE, this::getAlpha, consu, false);
 	}
 
 	private MutableBlockPos gettermutpos2 = new MutableBlockPos();
@@ -144,26 +144,25 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	/**
 	 * handle change of opacity on block update
 	 * 
-	 * @param origin position of the block update
+	 * @param target position of the block update
 	 * @param oldopa
 	 * @param newopa
 	 */
-	public void UpdateLightForOpacityChange(Vector3i origin, int oldopa, int newopa) {
-		NaiveFbGbvSightEngine.ISightConsumer consu1 = (source, souVisi, alpha, dist) -> {
+	public void UpdateLightForOpacityChange(Vector3i target, int oldopa, int newopa) {
+		NaiveFbGbvSightEngine.ISightConsumer scons = (source, souVisi) -> {
 			this.gettermutpos2.set(source.x, source.y, source.z);
 			BlockState blockState = this.getState(gettermutpos2);
-			int sourceEmit = blockState.getLightEmission();
-			if (sourceEmit != 0 && dist <= RANGE) { // if is a source and is in range
-
-				NaiveFbGbvSightEngine.ISightUpdateConsumer consu2 = (xyz2, ovisi, nvisi, dist2) -> {
-					updateLight(xyz2, ovisi, nvisi, dist2, sourceEmit, sourceEmit);
-				};
-				Vector3i offset = new Vector3i(origin).sub(source);
-				NaiveFbGbvSightEngine.IAlphaProvider oaprov = (xyz3) -> getOldOpacity(xyz3, origin, oldopa);
-				NaiveFbGbvSightEngine.traceAllChangedQuadrants(source, offset, RANGE, oaprov, this::getAlpha, consu2);
+			int emit = blockState.getLightEmission();
+			if (emit == 0) {
+				return;
 			}
+			ISightUpdateConsumer sucons = (xyz2, ovisi, nvisi) -> updateLight(source, xyz2, ovisi, nvisi, emit, emit);
+			IAlphaProvider oaprov = (xyz3) -> getOldOpacity(xyz3, target, oldopa);
+
+			NaiveFbGbvSightEngine.traceAllChangedQuadrants(source, target, RANGE, oaprov, this::getAlpha, sucons);
+
 		};
-		NaiveFbGbvSightEngine.traceAllQuadrants(origin, RANGE, this::getAlpha, consu1);
+		NaiveFbGbvSightEngine.traceAllQuadrants(target, RANGE, this::getAlpha, scons, true);
 	}
 
 	/**
@@ -186,15 +185,15 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	private MutableBlockPos gettermutpos = new MutableBlockPos();// HACK this forbid paralelization of the cones
 
 	/**
-	 * get the alpha value of a block (aka transparency, aka the oposite of opacity) 0= opaque, 1= transparent (wait did i got the concept wrong?)
+	 * get the transparency value of a block. 1=transparent, 0=opaque
 	 */
 	private float getAlpha(Vector3i xyz) { // this.shapeOccludes(packedPos, blockState, l, blockState2, direction)
 		this.gettermutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState blockState = this.getState(gettermutpos);
-		return getAlpha(blockState, gettermutpos);
+		return getAlpha(blockState);
 	}
 
-	protected int getAlpha(BlockState state, BlockPos blockPos) {
+	protected int getAlpha(BlockState state) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
 		return state.getLightBlock() <= 1 ? 1 : 0;
 	}
@@ -214,28 +213,25 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return getAlpha(xyz);
 	}
 
-	private void updateLight(Vector3i xyz, float ovisi, float nvisi, double dist, float oldemit, float newemit) {
-		updateLight(BlockPos.asLong(xyz.x, xyz.y, xyz.z), ovisi, nvisi, dist, oldemit, newemit);
-	}
-
 	/**
 	 * update the light level value of a block based on given visibility and emition changes
 	 * 
-	 * @param longpos position packed as a long
+	 * @param source  position of the light source
+	 * @param xyz     position of the block to update
 	 * @param ovisi   old visibility value
 	 * @param nvisi   new visibility value
-	 * @param dist    distance to the source
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */
-	private void updateLight(long longpos, float ovisi, float nvisi, double dist, float oldemit, float newemit) {
+	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, float oldemit, float newemit) {
+		long longpos = BlockPos.asLong(xyz.x, xyz.y, xyz.z);
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
-		ovisi /= dist;
-		nvisi /= dist;
-		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi * oldemit - 0.5), 0, 15);
-		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi * newemit - 0.5), 0, 15);
+		float dist = 1 + Vector3f.lengthSquared((xyz.x - source.x) * 0.3f, (xyz.y - source.y) * 0.3f, (xyz.z - source.z) * 0.3f);
+
+		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - 0.5), 0, 15);
+		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - 0.5), 0, 15);
 
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
