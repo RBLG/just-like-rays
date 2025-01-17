@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.light;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3i;
@@ -13,10 +13,12 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
-import teluri.mods.jlrays.ConeTracer26Nbs.IAlphaProvider;
-import teluri.mods.jlrays.ConeTracer26Nbs.ISightConsumer;
-import teluri.mods.jlrays.ConeTracer26Nbs.ISightUpdateConsumer3;
+import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
+import teluri.mods.jlrays.light.Gbv26NbsSightEngine.IAlphaProvider;
+import teluri.mods.jlrays.light.Gbv26NbsSightEngine.ISightConsumer;
+import teluri.mods.jlrays.light.Gbv26NbsSightEngine.ISightUpdateConsumer3;
+import teluri.mods.jlrays.light.JlrLightSectionStorage.JlrDataLayerStorageMap;
 
 /**
  * handle light updates logic
@@ -24,7 +26,7 @@ import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
  * @author RBLG
  * @since v0.0.1
  */
-public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
+public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
 	// max range that can be updated by a light update.
 	// a value above 15 will cause issues until the generation pyramid and loaded chunk borders logic is changed to handle more than adjacent chunks
 	public static final int RANGE = 20;
@@ -33,11 +35,11 @@ public class ConeTracedLightEngine extends LightEngine<JlrLightSectionStorage.Jl
 	// queue of block updates. use a FIFO queue but it could probably use a hash like vanilla (would require logic to handle merging two updates on the same pos)
 	private final LongArrayFIFOQueue changeQueue = new LongArrayFIFOQueue();
 
-	public ConeTracedLightEngine(LightChunkGetter chunkSource) {
+	public JlrBlockLightEngine(LightChunkGetter chunkSource) {
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
 	}
 
-	protected ConeTracedLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
+	protected JlrBlockLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 	}
 

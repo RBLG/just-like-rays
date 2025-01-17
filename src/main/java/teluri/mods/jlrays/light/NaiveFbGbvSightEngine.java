@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.light;
 
 import org.joml.Vector3f;
 import org.joml.Vector3i;

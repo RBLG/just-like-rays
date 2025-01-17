@@ -7,7 +7,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
-import teluri.mods.jlrays.ByteDataLayer;
+import teluri.mods.jlrays.light.ByteDataLayer;
 
 /**
  * @author RBLG
