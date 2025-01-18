@@ -61,7 +61,7 @@ public class NaiveFbGbvSightEngine {
 		return vec.x + vec.y + vec.z;
 	}
 
-	public static int max(int a, int b) {
+	public static float max(float a, float b) {
 		return Math.max(a, b);
 	}
 
@@ -166,9 +166,9 @@ public class NaiveFbGbvSightEngine {
 					}
 					// weights are similar to 18 neigbors 3d classic gbv
 					// weights are it1, it2 and it3 except for those 3
-					int f4w1 = max(0, itr1 - max(itr2, itr3)); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
-					int f5w2 = max(0, itr2 - max(itr1, itr3)); // weight 2 for face 5
-					int f6w3 = max(0, itr3 - max(itr1, itr2)); // weight 3 for face 6
+					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
+					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
+					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
 					float face4, face5, face6;
 					if (alpha == 0) {
@@ -261,9 +261,9 @@ public class NaiveFbGbvSightEngine {
 
 					// weights are it1, it2 and it3 except for those 3
 
-					int f4w1 = max(0, itr1 - max(itr2, itr3)); // weight 1 for face 4
-					int f5w2 = max(0, itr2 - max(itr1, itr3)); // weight 2 for face 5
-					int f6w3 = max(0, itr3 - max(itr1, itr2)); // weight 3 for face 6
+					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4
+					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
+					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
 					float oface4, oface5, oface6;
 					if (oalpha == 0) {
