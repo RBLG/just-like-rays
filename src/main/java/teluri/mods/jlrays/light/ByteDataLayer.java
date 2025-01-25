@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
@@ -6,6 +6,7 @@ import org.joml.Math;
 
 import net.minecraft.Util;
 import net.minecraft.world.level.chunk.DataLayer;
+import teluri.mods.jlrays.util.ToneMapperHelper;
 
 /**
  * 

@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.light;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -8,6 +8,7 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.DataLayerStorageMap;
 import net.minecraft.world.level.lighting.LayerLightSectionStorage;
+import teluri.mods.jlrays.JustLikeRays;
 
 /**
  * implementation of LayerLightSectionStorage to make use of the new fancy effects of ByteDataLayer to be used by the custom light engine

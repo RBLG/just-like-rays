@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.util;
 
 import org.joml.Math;
 

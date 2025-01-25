@@ -11,7 +11,7 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.lighting.LightEventListener;
-import teluri.mods.jlrays.ConeTracedLightEngine;
+import teluri.mods.jlrays.light.JlrBlockLightEngine;
 
 @Mixin(LevelLightEngine.class)
 public abstract class LevelLightEngineMixin implements LightEventListener {
@@ -21,7 +21,7 @@ public abstract class LevelLightEngineMixin implements LightEventListener {
 
 	@Inject(method = "<init>*", at = @At(value = "RETURN"))
 	public void replaceBlockEngineOnInit(LightChunkGetter lightChunkGetter, boolean blockLight, boolean skyLight, CallbackInfo info) {
-		blockEngine = blockLight ? new ConeTracedLightEngine(lightChunkGetter) : null;
+		blockEngine = blockLight ? new JlrBlockLightEngine(lightChunkGetter) : null;
 	}
 
 }

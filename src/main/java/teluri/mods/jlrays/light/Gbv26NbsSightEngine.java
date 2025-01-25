@@ -1,4 +1,4 @@
-package teluri.mods.jlrays;
+package teluri.mods.jlrays.light;
 
 import org.joml.Vector3f;
 import org.joml.Vector3i;
@@ -9,7 +9,8 @@ import org.joml.Vector3i;
  * @author RBLG
  * @since v0.0.1
  */
-public class ConeTracer26Nbs {
+@Deprecated
+public class Gbv26NbsSightEngine {
 
 	private static final int[] SIGNS = new int[] { 1, -1 };
 	// positive axis
@@ -59,7 +60,7 @@ public class ConeTracer26Nbs {
 	/**
 	 * trace all 48 cones around a source
 	 * 
-	 * @see ConeTracer26Nbs.TraceCone
+	 * @see Gbv26NbsSightEngine.TraceCone
 	 */
 	public static void traceAllCones(Vector3i source, int range, IAlphaProvider opmap, ISightConsumer lmap) {
 		// ExecutorService pool = Executors.newFixedThreadPool(48);
