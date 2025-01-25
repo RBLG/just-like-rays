@@ -42,9 +42,13 @@ public class NaiveFbGbvSightEngine {
 		return ncones;
 	}
 
+	public static class AlphaHolder {
+		public float block, f1, f2, f3, f4, f5, f6;
+	}
+
 	@FunctionalInterface
 	public static interface IAlphaProvider {
-		float get(Vector3i xyz);
+		AlphaHolder get(Vector3i xyz, Quadrant quadr, AlphaHolder hol);
 	}
 
 	@FunctionalInterface
@@ -86,9 +90,18 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightConsumer scons, boolean scouting) {
+	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightConsumer scons) {
 		for (Quadrant quadrant : QUADRANTS) {
-			traceQuadrant(source, range, quadrant, aprov, scons, scouting);
+			traceQuadrant(source, range, quadrant, aprov, scons);
+		}
+	}
+
+	/**
+	 * scout the visible area around a position to see if there is a visible light source
+	 */
+	public static void scoutAllQuadrants(Vector3i pos, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+		for (Quadrant quadrant : QUADRANTS) {
+			traceChangedQuadrant(pos, range, quadrant, oaprov, naprov, sucons, true);
 		}
 	}
 
@@ -99,7 +112,7 @@ public class NaiveFbGbvSightEngine {
 			int comp2 = sum(vtmp.set(target).sub(source).mul(quadrant.axis2));
 			int comp3 = sum(vtmp.set(target).sub(source).mul(quadrant.axis3));
 			if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
-				traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons);
+				traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
 			}
 		}
 	}
@@ -113,10 +126,11 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightConsumer scons, boolean scouting) {
+	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightConsumer scons) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
+		AlphaHolder ahol = new AlphaHolder();
 		if (range <= 0) {
 			return;
 		}
@@ -153,14 +167,16 @@ public class NaiveFbGbvSightEngine {
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
 
-					float alpha = aprov.get(xyz); // get this voxel alpha
+					AlphaHolder alpha = aprov.get(xyz, quadr, ahol); // get this voxel alpha
+
+					face1 *= alpha.f1;
+					face2 *= alpha.f2;
+					face3 *= alpha.f3;
 
 					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
-						if (scouting) {
-							scons.consume(xyz, 1);
-						} else if (alpha != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
-							float voxelvisi = interpolate(face1, itr1, face2, itr2, face3, itr3) * alpha;
+						if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
+							float voxelvisi = interpolate(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
 							scons.consume(xyz, voxelvisi);
 						}
 					}
@@ -171,12 +187,12 @@ public class NaiveFbGbvSightEngine {
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
 					float face4, face5, face6;
-					if (alpha == 0) {
+					if (alpha.block == 0) {
 						face4 = face5 = face6 = 0; // skip the computation
 					} else {
-						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha;
-						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha;
-						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha;
+						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.block * alpha.f4;
+						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.block * alpha.f5;
+						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.block * alpha.f6;
 					}
 
 					// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
@@ -200,10 +216,12 @@ public class NaiveFbGbvSightEngine {
 	 * @param naprov new visibility provider
 	 * @param sucons sight consumer
 	 */
-	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
+		AlphaHolder oahol = new AlphaHolder();
+		AlphaHolder nahol = new AlphaHolder();
 		if (range <= 0) {
 			return;
 		}
@@ -247,14 +265,23 @@ public class NaiveFbGbvSightEngine {
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
 
-					float oalpha = oaprov.get(xyz);
-					float nalpha = naprov.get(xyz);
+					oahol = oaprov.get(xyz, quadr, oahol);
+					oface1 *= oahol.f1;
+					oface2 *= oahol.f2;
+					oface3 *= oahol.f3;
+
+					nahol = naprov.get(xyz, quadr, nahol);
+					nface1 *= nahol.f1;
+					nface2 *= nahol.f2;
+					nface3 *= nahol.f3;
 
 					// avoid duplicated edges
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
-						if ((oalpha != 0 || nalpha != 0) && (oalpha != nalpha || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
-							float ovoxelvisi = interpolate(oface1, itr1, oface2, itr2, oface3, itr3) * oalpha;
-							float nvoxelvisi = interpolate(nface1, itr1, nface2, itr2, nface3, itr3) * nalpha;
+						if (scout) {
+							sucons.consume(xyz, 1, 1);
+						} else if ((oahol.block != 0 || nahol.block != 0) && (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
+							float ovoxelvisi = interpolate(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
+							float nvoxelvisi = interpolate(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}
@@ -266,24 +293,24 @@ public class NaiveFbGbvSightEngine {
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
 					float oface4, oface5, oface6;
-					if (oalpha == 0) {
+					if (oahol.block == 0) {
 						oface4 = oface5 = oface6 = 0;
 					} else {
-						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oalpha;
-						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oalpha;
-						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oalpha;
+						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oahol.block * oahol.f4;
+						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oahol.block * oahol.f5;
+						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oahol.block * oahol.f6;
 					}
 					ovbuffer[index + 0] = oface4;
 					ovbuffer[index + size * 3 + 1] = oface5;
 					ovbuffer[index + 3 + 2] = oface6;
 
 					float nface4, nface5, nface6;
-					if (nalpha == 0) {
+					if (nahol.block == 0) {
 						nface4 = nface5 = nface6 = 0;
 					} else {
-						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nalpha;
-						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nalpha;
-						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nalpha;
+						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nahol.block * nahol.f4;
+						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nahol.block * nahol.f5;
+						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nahol.block * nahol.f6;
 					}
 					nvbuffer[index + 0] = nface4;
 					nvbuffer[index + size * 3 + 1] = nface5;
