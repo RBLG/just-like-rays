@@ -13,7 +13,6 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 ##### Todo/Roadmap:
 
 - fix multi updates behaviors
-- impl mc face based opacity
 - tweaking mc border chunk system to fix ranges above 15
 - settings (radius, intensity, etc)
 
