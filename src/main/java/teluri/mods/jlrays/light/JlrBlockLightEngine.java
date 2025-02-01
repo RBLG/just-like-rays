@@ -1,5 +1,7 @@
 package teluri.mods.jlrays.light;
 
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.BlockGetter;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
@@ -37,8 +39,11 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	// map of all the changes to process with the previous blockstate associated
 	private final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
 
-	public JlrBlockLightEngine(LightChunkGetter chunkSource) {
+	private BlockGetter level;
+
+	public JlrBlockLightEngine(LightChunkGetter chunkSource, BlockGetter level) {
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
+		this.level = level;
 	}
 
 	protected JlrBlockLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
@@ -91,14 +96,14 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 * if it reach there it mean the change was non trivial
 	 * 
 	 * @param packedPos
-	 * @param packedEmit
 	 */
 	protected void updateBlock(long packedPos, BlockState oldbs, BlockState newbs) {
 		long secpos = SectionPos.blockToSection(packedPos);
-		Vector3i vpos = new Vector3i(BlockPos.getX(packedPos), BlockPos.getY(packedPos), BlockPos.getZ(packedPos));
+		BlockPos blockPos = new BlockPos(BlockPos.getX(packedPos), BlockPos.getY(packedPos), BlockPos.getZ(packedPos));
+		Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 		if (storage.storingLightForSection(secpos)) {
-			int oldopacity = getAlpha(oldbs);
-			int newopacity = getAlpha(newbs);
+			int oldopacity = getAlpha(blockPos, oldbs, level);
+			int newopacity = getAlpha(blockPos, newbs, level);
 			int oldemit = oldbs.getLightEmission();
 			int newemit = newbs.getLightEmission();
 
@@ -135,8 +140,6 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 * handle change of opacity on block update
 	 * 
 	 * @param target position of the block update
-	 * @param oldopa
-	 * @param newopa
 	 */
 	public void UpdateLightForOpacityChange(Vector3i target, BlockState oldbs, BlockState newbs) {
 		MutableBlockPos mutpos0 = new MutableBlockPos();
@@ -179,9 +182,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 	}
 
-	protected int getAlpha(BlockState state) {
+	protected int getAlpha(BlockPos blockPos, BlockState state, BlockGetter level) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
-		return state.getLightBlock() <= 1 ? 1 : 0;
+		return state.getLightBlock(level, blockPos) <= 1 ? 1 : 0;
 	}
 
 	public static interface IBlockStateProvider {
@@ -192,7 +195,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		mutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
-		hol.block = getAlpha(state);
+		hol.block = getAlpha(mutpos, state, level);
 		if (hol.block == 0 || isEmptyShape(state)) {
 			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
 		} else {
@@ -200,19 +203,25 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
 
-			BlockState state1 = bsprov.get(mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
-			BlockState state2 = bsprov.get(mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
-			BlockState state3 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
-			hol.f1 = shapeOccludes(state, state1, d1) ? 0 : 1;
-			hol.f2 = shapeOccludes(state, state2, d2) ? 0 : 1;
-			hol.f3 = shapeOccludes(state, state3, d3) ? 0 : 1;
+			BlockPos state1Pos = mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z);
+			BlockPos state2Pos = mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z);
+			BlockPos state3Pos = mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z);
+			BlockState state1 = bsprov.get(state1Pos);
+			BlockState state2 = bsprov.get(state2Pos);
+			BlockState state3 = bsprov.get(state3Pos);
+			hol.f1 = shapeOccludes(mutpos.asLong(), state, state1Pos.asLong(), state1, d1) ? 0 : 1;
+			hol.f2 = shapeOccludes(mutpos.asLong(), state, state2Pos.asLong(), state2, d2) ? 0 : 1;
+			hol.f3 = shapeOccludes(mutpos.asLong(), state, state2Pos.asLong(), state3, d3) ? 0 : 1;
 
-			BlockState state4 = bsprov.get(mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
-			BlockState state5 = bsprov.get(mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
-			BlockState state6 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
-			hol.f4 = shapeOccludes(state, state4, d1.getOpposite()) ? 0 : 1;
-			hol.f5 = shapeOccludes(state, state5, d2.getOpposite()) ? 0 : 1;
-			hol.f6 = shapeOccludes(state, state6, d3.getOpposite()) ? 0 : 1;
+			BlockPos state4Pos = mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z);
+			BlockPos state5Pos = mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z);
+			BlockPos state6Pos = mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z);
+			BlockState state4 = bsprov.get(state4Pos);
+			BlockState state5 = bsprov.get(state5Pos);
+			BlockState state6 = bsprov.get(state6Pos);
+			hol.f4 = shapeOccludes(mutpos.asLong(), state, state4Pos.asLong(), state4, d1.getOpposite()) ? 0 : 1;
+			hol.f5 = shapeOccludes(mutpos.asLong(), state, state5Pos.asLong(), state5, d2.getOpposite()) ? 0 : 1;
+			hol.f6 = shapeOccludes(mutpos.asLong(), state, state6Pos.asLong(), state6, d3.getOpposite()) ? 0 : 1;
 		}
 		return hol;
 	}
@@ -254,8 +263,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 		float dist = 1 + Vector3f.lengthSquared((xyz.x - source.x) * 0.3f, (xyz.y - source.y) * 0.3f, (xyz.z - source.z) * 0.3f);
 
-		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - 0.5), 0, 15);
-		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - 0.5), 0, 15);
+		int oival = ovisi == 0 ? 0 : Mth.clamp((int) (ovisi / dist * oldemit - 0.5), 0, 15);
+		int nival = nvisi == 0 ? 0 : Mth.clamp((int) (nvisi / dist * newemit - 0.5), 0, 15);
 
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}

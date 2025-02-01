@@ -1,6 +1,8 @@
 package teluri.mods.jlrays.mixin;
 
+import net.minecraft.world.level.LevelHeightAccessor;
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,7 +23,7 @@ public abstract class LevelLightEngineMixin implements LightEventListener {
 
 	@Inject(method = "<init>*", at = @At(value = "RETURN"))
 	public void replaceBlockEngineOnInit(LightChunkGetter lightChunkGetter, boolean blockLight, boolean skyLight, CallbackInfo info) {
-		blockEngine = blockLight ? new JlrBlockLightEngine(lightChunkGetter) : null;
+		blockEngine = blockLight ? new JlrBlockLightEngine(lightChunkGetter, lightChunkGetter.getLevel()) : null;
 	}
 
 }
