@@ -2,6 +2,7 @@ package teluri.mods.jlrays.mixin;
 
 import java.util.Objects;
 
+import com.google.common.collect.ImmutableMap;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,16 +27,18 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 
 	@Shadow
 	private int lightEmission;
-	@Shadow
-	private int lightBlock;
+
+
+//	@Shadow
+//	private int lightBlock;
 
 	/**
 	 * modify emition and opacity of lava blockstates
 	 */
-	@Inject(method = "<init>*", at = @At("TAIL"))
-	protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
-		
-	}
+//	@Inject(method = "<init>*", at = @At("TAIL"))
+//	protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
+//
+//	}
 	
 	/**
 	 * modify fields based on description id. to prepare
@@ -53,8 +56,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	/**
 	 * fake constructor for java compiler sake
 	 */
-	protected BlockStateBaseMixin(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec) {
-		super(owner, values, propertiesCodec);
+	protected BlockStateBaseMixin(Block object, ImmutableMap<Property<?>, Comparable<?>> immutableMap, MapCodec<BlockState> mapCodec) {
+		super(object, immutableMap, mapCodec);
 	}
-
 }

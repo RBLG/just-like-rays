@@ -4,7 +4,7 @@ plugins {
 	id "com.modrinth.minotaur" version "2.+"
 }
 
-version = project.mod_version
+version = project.mod_version + minecraft_version
 group = project.maven_group
 
 base {
@@ -46,7 +46,7 @@ dependencies {
 	
 	mappings loom.layered() {
          officialMojangMappings()
-         parchment("org.parchmentmc.data:parchment-1.21.4:2025.01.05@zip")
+         parchment("org.parchmentmc.data:parchment-1.20.1:2023.09.03@zip")
      }
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
@@ -65,7 +65,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 17
 }
 
 java {
@@ -74,8 +74,8 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {

@@ -26,9 +26,9 @@ public class ClientPacketListenerMixin {
 	 * replace a call to the DataLayer() to the ByteDataLayer equivalent at chunk loading
 	 */
 	@WrapOperation(//
-			method = "readSectionList(IILnet/minecraft/world/level/lighting/LevelLightEngine;Lnet/minecraft/world/level/LightLayer;Ljava/util/BitSet;Ljava/util/BitSet;Ljava/util/Iterator;Z)V", //
+			method = "readSectionList(IILnet/minecraft/world/level/lighting/LevelLightEngine;Lnet/minecraft/world/level/LightLayer;Ljava/util/BitSet;Ljava/util/BitSet;Ljava/util/Iterator;)V",
 			at = @At(value = "NEW", target = "()Lnet/minecraft/world/level/chunk/DataLayer;"))
-	private DataLayer newDataLayer(Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates, boolean update) {
+	private DataLayer newDataLayer(Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates) {
 		if (lightLayer == LightLayer.BLOCK) {
 			return new ByteDataLayer();
 		}
@@ -39,9 +39,9 @@ public class ClientPacketListenerMixin {
 	 * replace a call to the DataLayer(byte[]) to the ByteDataLayer equivalent at chunk loading
 	 */
 	@WrapOperation(//
-			method = "readSectionList(IILnet/minecraft/world/level/lighting/LevelLightEngine;Lnet/minecraft/world/level/LightLayer;Ljava/util/BitSet;Ljava/util/BitSet;Ljava/util/Iterator;Z)V", //
+			method = "readSectionList(IILnet/minecraft/world/level/lighting/LevelLightEngine;Lnet/minecraft/world/level/LightLayer;Ljava/util/BitSet;Ljava/util/BitSet;Ljava/util/Iterator;)V",
 			at = @At(value = "NEW", target = "([B)Lnet/minecraft/world/level/chunk/DataLayer;"))
-	private DataLayer newDataLayerWithByteArray(byte[] data, Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates, boolean update) {
+	private DataLayer newDataLayerWithByteArray(byte[] data, Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates) {
 		if (lightLayer == LightLayer.BLOCK) {
 			return new ByteDataLayer(data);
 		}
