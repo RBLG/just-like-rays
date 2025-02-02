@@ -1,120 +1,80 @@
 plugins {
-	id 'fabric-loom' version '1.9-SNAPSHOT'
-	id 'maven-publish'
-	id "com.modrinth.minotaur" version "2.+"
+    id 'dev.architectury.loom' version '1.9.424' apply false
+    id 'architectury-plugin' version '3.4-SNAPSHOT'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
 }
 
-version = project.mod_version + minecraft_version
-group = project.maven_group
-
-base {
-	archivesName = project.archives_base_name
+architectury {
+    minecraft = project.minecraft_version
 }
 
-repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
-	maven {
-         name = 'ParchmentMC'
-         url = 'https://maven.parchmentmc.org'
-    }
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
+
+    repositories {
+        maven {
+            name = 'ParchmentMC'
+            url = 'https://maven.parchmentmc.org'
+        }
     }
 }
 
-loom {
-	splitEnvironmentSourceSets()
+subprojects {
+    apply plugin: 'dev.architectury.loom'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
 
-	mods {
-		"just-like-rays" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
-	accessWidenerPath = file("src/main/resources/yeet.accesswidener")
+    base {
+        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
+        archivesName = "$rootProject.archives_name-$project.name"
+    }
 
-}
+    repositories {
 
-dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	
-	mappings loom.layered() {
-         officialMojangMappings()
-         parchment("org.parchmentmc.data:parchment-1.20.1:2023.09.03@zip")
-     }
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    }
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	//modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	
-	//modImplementation "maven.modrinth:sodium:mc1.21.1-0.6.5-fabric"
-}
+    loom {
+        silentMojangMappingsLicense()
+    }
 
-processResources {
-	inputs.property "version", project.version
+    dependencies {
+        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        mappings loom.layered() {
+            officialMojangMappings()
+            parchment("org.parchmentmc.data:parchment-1.20.1:2023.09.03@zip")
+        }
+    }
 
-	filesMatching("fabric.mod.json") {
-		expand "version": project.version
-	}
-}
+    java {
+        // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+        // if it is present.
+        // If you remove this line, sources will not be generated.
+        withSourcesJar()
 
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 17
-}
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 
-java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
-	withSourcesJar()
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 17
+    }
 
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
-}
+    // Configure Maven publishing.
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifactId = base.archivesName.get()
+                from components.java
+            }
+        }
 
-jar {
-	from("LICENSE") {
-		rename { "${it}_${project.base.archivesName.get()}"}
-	}
-}
-
-// configure the maven publication
-publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = project.archives_base_name
-			from components.java
-		}
-	}
-
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
-	}
-}
-
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN") // Remember to have the MODRINTH_TOKEN environment variable set or else this will fail - just make sure it stays private!
-    projectId = "${project.archives_base_name}" // This can be the project ID or the slug. Either will work!
-    //versionNumber = "${project.mod_version}" // You don't need to set this manually. Will fail if Modrinth has this version already
-    versionType = "alpha" // alpha / beta / release
-    uploadFile = remapJar // With Loom, this MUST be set to `remapJar` instead of `jar`!
-    gameVersions = ["${project.minecraft_version}"] // Must be an array, even with only one version
-    //loaders = ["fabric"] // Must also be an array - no need to specify this if you're using Loom or ForgeGradle
-    dependencies { // A special DSL for creating dependencies
-        // scope.type
-        // The scope can be `required`, `optional`, `incompatible`, or `embedded`
-        // The type can either be `project` or `version`
-        //required.project "fabric-api" // Creates a new required dependency on Fabric API
-        //optional.project "sodium" // Creates a new optional dependency on this specific version of Sodium
+        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+        repositories {
+            // Add repositories to publish to here.
+            // Notice: This block does NOT have the same function as the block in the top level.
+            // The repositories here will be used for publishing your artifact, not for
+            // retrieving dependencies.
+        }
     }
 }

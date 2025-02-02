@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"package": "teluri.mods.jlrays.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [
+		"LevelLightEngineMixin",
+		"ProtoChunkMixin",
+		"LevelChunkMixin",
+		"ChunkSerializerMixin",
+		"ClientboundLightUpdatePacketDataMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
