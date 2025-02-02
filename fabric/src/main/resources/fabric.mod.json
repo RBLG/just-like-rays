@@ -20,6 +20,9 @@
 		],
 		"client": [
 			"teluri.mods.jlrays.client.JustLikeRaysClient"
+		],
+		"modmenu": [
+			"teluri.mods.jlrays.fabric.client.ModMenuIntegration"
 		]
 	},
 	"mixins": [

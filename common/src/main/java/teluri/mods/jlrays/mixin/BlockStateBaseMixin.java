@@ -14,7 +14,11 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.Config;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -28,7 +32,6 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	@Final
 	@Mutable
 	private int lightEmission;
-
 
 //	@Shadow
 //	private int lightBlock;
@@ -47,10 +50,16 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
-		if (Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
-
-			this.lightEmission = 10;
-			//this.lightBlock = 15; //cause issues with transparent blocks
+//		if (Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
+//
+//			this.lightEmission = 10;
+//			//this.lightBlock = 15; //cause issues with transparent blocks
+//		}
+		//Map<String, Integer> config = JustLikeRays.CONFIG.blockLightLevels;
+		for(var blockLightLevel : JustLikeRays.CONFIG.blockLightLevels) {
+			if (blockLightLevel.blockId.equals(owner.getDescriptionId())){
+				this.lightEmission = blockLightLevel.lightLevel;
+			}
 		}
 	}
 

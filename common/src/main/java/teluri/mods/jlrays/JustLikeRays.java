@@ -1,8 +1,11 @@
 package teluri.mods.jlrays;
 
+import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import teluri.mods.jlrays.config.Config;
 
 /**
  * Just like rays mod initializer
@@ -15,7 +18,11 @@ public class JustLikeRays implements ModInitializer {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	@Override
+	public static Config CONFIG;
+
 	public void onInitialize() {
+		AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+
+		JustLikeRays.CONFIG = AutoConfig.getConfigHolder(Config.class).getConfig();
 	}
 }
