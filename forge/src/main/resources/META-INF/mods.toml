@@ -26,3 +26,10 @@ mandatory = true
 versionRange = "[1.20.1,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.just_like_rays]]
+modId = "cloth-config2"
+mandatory = true
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"
