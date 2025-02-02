@@ -3,11 +3,14 @@ plugins {
 }
 
 loom {
+    accessWidenerPath.set(project(":common").loom.accessWidenerPath)
     forge {
         mixinConfig "just_like_rays.mixins.json"
         mixinConfig "just_like_rays.forge.client.mixins.json"
+
+        convertAccessWideners.set(true)
+        extraAccessWideners.add(loom.accessWidenerPath.get().asFile.name)
     }
-    accessWidenerPath.set(project(":common").loom.accessWidenerPath)
 }
 
 architectury {
