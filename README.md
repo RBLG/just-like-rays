@@ -7,7 +7,7 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 
 ##### Info:
 
-- Only compatible with worlds generated with this mod active (for save format reasons)
+- On adding/removing or updating this mod, consider doing Edit>Optimize world for compatibility
 
 
 ##### Todo/Roadmap:
