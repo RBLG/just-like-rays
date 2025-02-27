@@ -82,6 +82,13 @@ public class NaiveFbGbvSightEngine {
 		return (itr1 != 0 || 0 <= quadr.axis1.x) && (itr2 != 0 || 0 <= quadr.axis2.y) && (itr3 != 0 || 0 <= quadr.axis3.z);
 	}
 
+	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
+		// innacurate but diagonal walls dont cast shadows on themselves
+		//return max(val1, max(val2, val3));
+		// accurate output but might look worse.
+		return interpolate(val1, w1, val2, w2, val3, w3);
+	}
+
 	/**
 	 * run the FBGBV algorithm over all quadrant
 	 * 
@@ -176,7 +183,7 @@ public class NaiveFbGbvSightEngine {
 					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
-							float voxelvisi = interpolate(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
+							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
 							scons.consume(xyz, voxelvisi);
 						}
 					}
@@ -280,8 +287,8 @@ public class NaiveFbGbvSightEngine {
 						if (scout) {
 							sucons.consume(xyz, 1, 1);
 						} else if ((oahol.block != 0 || nahol.block != 0) && (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
-							float ovoxelvisi = interpolate(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
-							float nvoxelvisi = interpolate(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
+							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
+							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}
