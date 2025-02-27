@@ -52,13 +52,18 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	@FunctionalInterface
-	public static interface ISightConsumer {
-		void consume(Vector3i xyz, float visi);
+	public static interface ISightUpdateConsumer {
+		void consume(Vector3i xyz, float ovisi, float nvisi);
 	}
 
 	@FunctionalInterface
-	public static interface ISightUpdateConsumer {
-		void consume(Vector3i xyz, float ovisi, float nvisi);
+	public static interface IBlockUpdateIterator {
+		void forEach(IBlockUpdateStep cons);
+	}
+
+	@FunctionalInterface
+	public static interface IBlockUpdateStep {
+		boolean consume(int x, int y, int z);
 	}
 
 	public static int sum(Vector3i vec) {
@@ -78,8 +83,21 @@ public class NaiveFbGbvSightEngine {
 		return (val1 * w1 + val2 * w2 + val3 * w3) / (w1 + w2 + w3);
 	}
 
+	/**
+	 * check if a quadrant should draw blocks when on an edge shared with another quadrant
+	 */
 	public static boolean isNotDuplicatedEdge(Quadrant quadr, int itr1, int itr2, int itr3) {
 		return (itr1 != 0 || 0 <= quadr.axis1.x) && (itr2 != 0 || 0 <= quadr.axis2.y) && (itr3 != 0 || 0 <= quadr.axis3.z);
+	}
+
+	/**
+	 * get the visibility value for the block based on the visibility values of the faces and their weights
+	 */
+	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
+		// innacurate but diagonal walls dont cast shadows on themselves
+		// return max(val1, max(val2, val3));
+		// accurate output but might look worse.
+		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
 
 	/**
@@ -90,9 +108,9 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightConsumer scons) {
+	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
 		for (Quadrant quadrant : QUADRANTS) {
-			traceQuadrant(source, range, quadrant, aprov, scons);
+			traceQuadrant(source, range, quadrant, aprov, scons, false);
 		}
 	}
 
@@ -105,6 +123,18 @@ public class NaiveFbGbvSightEngine {
 		}
 	}
 
+	/**
+	 * scoute the visible area around a position when there is no block updates in range
+	 */
+	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
+		for (Quadrant quadrant : QUADRANTS) {
+			traceQuadrant(source, range, quadrant, aprov, scons, true);
+		}
+	}
+
+	/**
+	 * update quadrants impacted by a single block update (unused)
+	 */
 	public static void traceAllChangedQuadrants(Vector3i source, Vector3i target, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		Vector3i vtmp = new Vector3i();
 		for (Quadrant quadrant : QUADRANTS) {
@@ -118,7 +148,36 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	/**
-	 * run the FBGBV algorithm over a quadrant
+	 * update the entire area around a source while handling block updates in range
+	 */
+	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+		for (Quadrant quadrant : QUADRANTS) {
+			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
+		}
+	}
+
+	/**
+	 * update the quadrants around a source that are impacted by at least one block update
+	 */
+	public static void traceAllChangedQuadrants2(Vector3i source, int range, IBlockUpdateIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+		Vector3i vtmp = new Vector3i();
+		// check if there's a block update in a quadrant and if so, update the quadrant
+		for (Quadrant quadrant : QUADRANTS) {
+			iter.forEach((x, y, z) -> {
+				int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
+				int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
+				int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
+				if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
+					traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
+					return true;
+				}
+				return false;
+			});
+		}
+	}
+
+	/**
+	 * run the FBGBV algorithm over a quadrant with no block updates in range
 	 * 
 	 * @param origin position of the source of the light
 	 * @param range  max range that is iterated over
@@ -126,7 +185,7 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightConsumer scons) {
+	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
@@ -175,9 +234,11 @@ public class NaiveFbGbvSightEngine {
 
 					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
-						if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
-							float voxelvisi = interpolate(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
-							scons.consume(xyz, voxelvisi);
+						if (scout) {
+							scons.consume(xyz, 1, 1);
+						} else if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
+							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
+							scons.consume(xyz, voxelvisi, voxelvisi);
 						}
 					}
 					// weights are similar to 18 neigbors 3d classic gbv
@@ -280,8 +341,8 @@ public class NaiveFbGbvSightEngine {
 						if (scout) {
 							sucons.consume(xyz, 1, 1);
 						} else if ((oahol.block != 0 || nahol.block != 0) && (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
-							float ovoxelvisi = interpolate(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
-							float nvoxelvisi = interpolate(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
+							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
+							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}
