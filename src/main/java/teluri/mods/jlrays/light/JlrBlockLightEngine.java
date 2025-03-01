@@ -1,9 +1,12 @@
 package teluri.mods.jlrays.light;
 
+import java.util.ArrayList;
+
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -19,6 +22,8 @@ import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.AlphaHolder;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.IAlphaProvider;
+import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.IBlockUpdateIterator;
+import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.IBlockUpdateStep;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.ISightConsumer;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.Quadrant;
@@ -37,6 +42,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	// map of all the changes to process with the previous blockstate associated
 	private final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
 
+	private final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
+
 	public JlrBlockLightEngine(LightChunkGetter chunkSource) {
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
 	}
@@ -54,8 +61,18 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		if (pos instanceof ShinyBlockPos) {
 			ShinyBlockPos rpos = (ShinyBlockPos) pos;
 			BlockState prev = rpos.previous;
+			BlockState curr = rpos.current;
 
-			this.changeMap.putIfAbsent(pos.asLong(), prev);
+			long secpos = SectionPos.blockToSection(pos.asLong());
+			if (storage.storingLightForSection(secpos)) {
+				if (getAlpha(prev) != getAlpha(curr) || prev.useShapeForLightOcclusion() || curr.useShapeForLightOcclusion()) {
+					changeMap.putIfAbsent(pos.asLong(), prev);
+				}
+				if (prev.getLightEmission() != curr.getLightEmission()) {
+					sourceChangeMap.putIfAbsent(pos.asLong(), prev);
+				}
+			}
+
 		} else {
 			JustLikeRays.LOGGER.error("checkBlock in destination to the light engine was not provided a ShinyBlockPos");
 		}
@@ -63,7 +80,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 
 	@Override
 	public boolean hasLightWork() {
-		return !this.changeMap.isEmpty() || super.hasLightWork();
+		return !changeMap.isEmpty() || super.hasLightWork();
 	}
 
 	private final MutableBlockPos mutPos3 = new MutableBlockPos();
@@ -73,93 +90,154 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 */
 	@Override
 	public int runLightUpdates() {
-		this.changeMap.forEach((longpos, prev) -> {
+		/*
+		 * Vector3i vtmp = new Vector3i(); sourceChangeMap.forEach((longpos, prev) -> { mutPos3.set(longpos); BlockState curr = getState(mutPos3); int oldemit =
+		 * prev.getLightEmission(); int newemit = curr.getLightEmission(); int oldopacity = getAlpha(prev); int newopacity = getAlpha(curr); if ((oldemit != 0 || newemit != 0) &&
+		 * newopacity != 0) { vtmp.set(mutPos3.getX(), mutPos3.getY(), mutPos3.getZ()); updateLight(vtmp, vtmp, oldopacity, newopacity, oldemit, newemit); }
+		 * 
+		 * });
+		 */
+		changeMap.forEach((longpos, prev) -> {
 			mutPos3.set(longpos);
 			BlockState curr = getState(mutPos3);
-			updateBlock(longpos, prev, curr);
+			evaluateImpactedSources(mutPos3, prev, curr);
+			if (getAlpha(curr) == 0) {
+				storage.setStoredLevel(longpos, 0);
+			}
+		});
+		sourceChangeMap.forEach((longpos, prev) -> {
+			mutPos3.set(longpos);
+			BlockState curr = getState(mutPos3);
+			updateImpactedSource(mutPos3, prev, curr);
+
 		});
 		this.changeMap.clear();
 		this.changeMap.trim(512);
+
+		this.sourceChangeMap.clear();
+		this.sourceChangeMap.trim(512);
 
 		this.storage.markNewInconsistencies(this);
 		this.storage.swapSectionMap();
 		return 0; // return value is unused anyway
 	}
 
-	/**
-	 * trigger a source update and/or an opacity update if required on a block change<br>
-	 * if it reach there it mean the change was non trivial
-	 * 
-	 * @param packedPos
-	 * @param packedEmit
-	 */
-	protected void updateBlock(long packedPos, BlockState oldbs, BlockState newbs) {
-		long secpos = SectionPos.blockToSection(packedPos);
-		Vector3i vpos = new Vector3i(BlockPos.getX(packedPos), BlockPos.getY(packedPos), BlockPos.getZ(packedPos));
-		if (storage.storingLightForSection(secpos)) {
-			int oldopacity = getAlpha(oldbs);
-			int newopacity = getAlpha(newbs);
-			int oldemit = oldbs.getLightEmission();
-			int newemit = newbs.getLightEmission();
-
-			if (newopacity != oldopacity || oldbs.useShapeForLightOcclusion() || newbs.useShapeForLightOcclusion()) {
-				UpdateLightForOpacityChange(vpos, oldbs, newbs);
-			}
-			if (oldemit != 0 || newemit != 0) {
-				if (newopacity != 0) {
-					updateLight(vpos, vpos, oldopacity, newopacity, oldemit, newemit);
-				}
-				UpdateLightForSourceChanges(vpos, oldemit, newemit);
-			}
-			if (newopacity == 0) {
-				storage.setStoredLevel(packedPos, 0);
-			}
-		}
-	}
-
-	/**
-	 * handle change of emition intensity on block update
-	 * 
-	 * @param source  position of the block update
-	 * @param oldemit previous emition intensity
-	 * @param newemit current emition intensity
-	 */
-	public void UpdateLightForSourceChanges(Vector3i source, int oldemit, int newemit) {
-		ISightConsumer consu = (xyz, visi) -> updateLight(source, xyz, visi, visi, oldemit, newemit);
-		MutableBlockPos mutpos1 = new MutableBlockPos();
-		IAlphaProvider naprov = (xyz5, quadr, hol) -> getCurrentAlphases(xyz5, quadr, hol, mutpos1);
-		NaiveFbGbvSightEngine.traceAllQuadrants(source, RANGE, naprov, consu);
-	}
-
-	/**
-	 * handle change of opacity on block update
-	 * 
-	 * @param target position of the block update
-	 * @param oldopa
-	 * @param newopa
-	 */
-	public void UpdateLightForOpacityChange(Vector3i target, BlockState oldbs, BlockState newbs) {
+	protected void evaluateImpactedSources(BlockPos pos, BlockState oldbs, BlockState newbs) {
+		Vector3i target = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
 		MutableBlockPos mutpos0 = new MutableBlockPos();
 		NaiveFbGbvSightEngine.ISightUpdateConsumer scons = (source, unused1, unused2) -> {
 			mutpos0.set(source.x, source.y, source.z);
 			BlockState blockState = this.getState(mutpos0);
-			int emit = blockState.getLightEmission();
-			if (emit == 0) {
-				return;
+			if (blockState.getLightEmission() != 0) {
+				sourceChangeMap.putIfAbsent(mutpos0.asLong(), blockState);
 			}
-			ISightUpdateConsumer sucons = (xyz2, ovisi, nvisi) -> updateLight(source, xyz2, ovisi, nvisi, emit, emit);
-
-			MutableBlockPos mutpos1 = new MutableBlockPos();
-			MutableBlockPos mutpos2 = new MutableBlockPos();
-			IAlphaProvider oaprov = (xyz5, quadr, hol) -> getPreviousAlphases(xyz5, quadr, hol, mutpos1, oldbs, target);
-			IAlphaProvider naprov = (xyz5, quadr, hol) -> getCurrentAlphases(xyz5, quadr, hol, mutpos2);
-			NaiveFbGbvSightEngine.traceAllChangedQuadrants(source, target, RANGE, oaprov, naprov, sucons);
 		};
 		MutableBlockPos mutpos3 = new MutableBlockPos();
 		MutableBlockPos mutpos4 = new MutableBlockPos();
-		IAlphaProvider oaprov2 = (xyz5, quadr, hol) -> getPreviousAlphases(xyz5, quadr, hol, mutpos3, oldbs, target);
-		IAlphaProvider naprov2 = (xyz5, quadr, hol) -> getCurrentAlphases(xyz5, quadr, hol, mutpos4);
-		NaiveFbGbvSightEngine.scoutAllQuadrants(target, RANGE, oaprov2, naprov2, scons);
+		IAlphaProvider oaprov = (xyz5, quadr, hol) -> getPreviousAlphasWhenMany(xyz5, quadr, hol, mutpos3);
+		IAlphaProvider naprov = (xyz5, quadr, hol) -> getCurrentAlphas(xyz5, quadr, hol, mutpos4);
+		NaiveFbGbvSightEngine.scoutAllQuadrants(target, RANGE, oaprov, naprov, scons);
+	}
+
+	protected void updateImpactedSource(BlockPos pos, BlockState oldbs, BlockState newbs) {
+		Vector3i source = new Vector3i(pos.getX(), pos.getY(), pos.getZ());
+		int oldemit = oldbs.getLightEmission();
+		int newemit = newbs.getLightEmission();
+		int oldopacity = getAlpha(oldbs);
+		int newopacity = getAlpha(newbs);
+		if (oldopacity != newopacity && newopacity != 0) {
+			updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
+		}
+		// filter to keep only the updates in range
+		Vector3i vtmp = new Vector3i();
+		long[] inrangepos = new long[changeMap.size()];
+		BlockState[] inrangebs = new BlockState[changeMap.size()];
+		int iter = 0;
+		for (Entry<BlockState> entry : changeMap.long2ObjectEntrySet()) {
+			long upos = entry.getLongKey();
+			vtmp.set(BlockPos.getX(upos), BlockPos.getY(upos), BlockPos.getZ(upos)).sub(source).absolute();
+			int dist = Math.max(vtmp.x, Math.max(vtmp.y, vtmp.z));
+			if (dist <= RANGE && dist != 0) {
+				inrangepos[iter] = entry.getLongKey();
+				inrangebs[iter] = entry.getValue();
+				iter++;
+			}
+		}
+		if (iter == 0) {
+			updateSourceWithNoBlockUpdate(source, oldemit, newemit);
+		} else if (iter == 1) {
+			updateSourceWithOneBlockUpdate(source, oldemit, newemit, inrangebs[0], inrangepos[0]);
+		} else if (iter <= 8) {
+			updateSourceWithSomeBlockUpdates(source, oldemit, newemit, inrangebs, inrangepos, iter);
+		} else {
+			updateSourceWithTooManyBlockUpdates(source, oldemit, newemit);
+		}
+	}
+
+	protected void updateSourceWithNoBlockUpdate(Vector3i source, int oldemit, int newemit) {
+		ISightConsumer consu = (xyz, visi) -> updateLight(source, xyz, visi, visi, oldemit, newemit);
+		MutableBlockPos mutpos1 = new MutableBlockPos();
+		IAlphaProvider naprov = (xyz, quadr, hol) -> getCurrentAlphas(xyz, quadr, hol, mutpos1);
+		NaiveFbGbvSightEngine.traceAllQuadrants(source, RANGE, naprov, consu);
+	}
+
+	protected void updateSourceWithOneBlockUpdate(Vector3i source, int oldemit, int newemit, BlockState oldbs, long target) {
+		ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
+		MutableBlockPos mutpos3 = new MutableBlockPos();
+		MutableBlockPos mutpos4 = new MutableBlockPos();
+		IAlphaProvider oaprov = (xyz, quadr, hol) -> getPreviousAlphasWhen1(xyz, quadr, hol, mutpos3, oldbs, target);
+		IAlphaProvider naprov = (xyz, quadr, hol) -> getCurrentAlphas(xyz, quadr, hol, mutpos4);
+		IBlockUpdateIterator buiter = (step) -> step.consume(BlockPos.getX(target), BlockPos.getY(target), BlockPos.getZ(target));
+		if (oldemit != newemit) {
+			NaiveFbGbvSightEngine.traceAllQuadrants2(source, RANGE, buiter, oaprov, naprov, consu);
+		} else {
+			NaiveFbGbvSightEngine.traceAllChangedQuadrants2(source, newemit, buiter, oaprov, naprov, consu);
+		}
+	}
+
+	protected void updateSourceWithSomeBlockUpdates(Vector3i source, int oldemit, int newemit, BlockState[] oldbss, long[] targets, int size) {
+		ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
+		MutableBlockPos mutpos3 = new MutableBlockPos();
+		MutableBlockPos mutpos4 = new MutableBlockPos();
+		IAlphaProvider oaprov = (xyz, quadr, hol) -> getPreviousAlphasWhenSome(xyz, quadr, hol, mutpos3, oldbss, targets, size);
+		IAlphaProvider naprov = (xyz, quadr, hol) -> getCurrentAlphas(xyz, quadr, hol, mutpos4);
+		IBlockUpdateIterator buiter = (step) -> {
+			for (int iter = 0; iter < size; iter++) {
+				long target = targets[iter];
+				boolean done = step.consume(BlockPos.getX(target), BlockPos.getY(target), BlockPos.getZ(target));
+				if (done) {
+					return;
+				}
+			}
+		};
+		if (oldemit != newemit) {
+			NaiveFbGbvSightEngine.traceAllQuadrants2(source, RANGE, buiter, oaprov, naprov, consu);
+		} else {
+			NaiveFbGbvSightEngine.traceAllChangedQuadrants2(source, newemit, buiter, oaprov, naprov, consu);
+		}
+	}
+
+	protected void updateSourceWithTooManyBlockUpdates(Vector3i source, int oldemit, int newemit) {
+		ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
+		MutableBlockPos mutpos3 = new MutableBlockPos();
+		MutableBlockPos mutpos4 = new MutableBlockPos();
+		IAlphaProvider oaprov = (xyz, quadr, hol) -> getPreviousAlphasWhenMany(xyz, quadr, hol, mutpos3);
+		IAlphaProvider naprov = (xyz, quadr, hol) -> getCurrentAlphas(xyz, quadr, hol, mutpos4);
+		IBlockUpdateIterator buiter = (step)->{
+			for (Entry<BlockState> entry : changeMap.long2ObjectEntrySet()) {
+				long upos = entry.getLongKey();
+				boolean stop = step.consume(BlockPos.getX(upos), BlockPos.getY(upos), BlockPos.getZ(upos));
+				if (stop) {
+					return;
+				}
+			}
+		};
+
+		if (oldemit != newemit) {
+			NaiveFbGbvSightEngine.traceAllQuadrants2(source, RANGE, buiter, oaprov, naprov, consu);
+		} else {
+			NaiveFbGbvSightEngine.traceAllChangedQuadrants2(source, newemit, buiter, oaprov, naprov, consu);
+		}
 	}
 
 	/**
@@ -173,8 +251,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			lightChunk.findBlockLightSources((blockPos, blockState) -> {
 				int i = blockState.getLightEmission();
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-				this.UpdateLightForSourceChanges(vpos, 0, i);
-				// this.storage.assertValidity(blockPos.asLong());
+				updateSourceWithNoBlockUpdate(vpos, 0, i);
 			});
 		}
 	}
@@ -217,24 +294,38 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return hol;
 	}
 
-	public AlphaHolder getCurrentAlphases(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
-		return getAlphases(xyz, (pos) -> getState(pos), quadr, hol, mutpos);
+	public AlphaHolder getCurrentAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
+		return getAlphases(xyz, this::getState, quadr, hol, mutpos);
 	}
 
-	public AlphaHolder getPreviousAlphases(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos, BlockState oldbs, Vector3i target) {
-		return getAlphases(xyz, (pos) -> getOldStatePoorly(pos, oldbs, target), quadr, hol, mutpos);
+	public AlphaHolder getPreviousAlphasWhen1(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos, BlockState oldbs, long target) {
+		return getAlphases(xyz, (pos) -> getOldStateWhen1(pos, oldbs, target), quadr, hol, mutpos);
 	}
 
-	public BlockState getOldState(BlockPos pos) {
-		BlockState state = changeMap.get(pos.asLong());
-		return state != null ? state : getState(pos);
+	public AlphaHolder getPreviousAlphasWhenSome(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos, BlockState[] oldbss, long[] targets, int size) {
+		return getAlphases(xyz, (pos) -> getOldStateWhenSome(pos, oldbss, targets, size), quadr, hol, mutpos);
 	}
 
-	public BlockState getOldStatePoorly(BlockPos pos, BlockState oldbs, Vector3i target) {
-		if (target.equals(pos.getX(), pos.getY(), pos.getZ())) {
-			return oldbs;
+	public AlphaHolder getPreviousAlphasWhenMany(Vector3i xyz, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
+		return getAlphases(xyz, this::getOldStateWhenMany, quadr, hol, mutpos);
+	}
+
+	public BlockState getOldStateWhen1(BlockPos pos, BlockState oldbs, long target) {
+		return target == pos.asLong() ? oldbs : getState(pos);
+	}
+
+	public BlockState getOldStateWhenSome(BlockPos pos, BlockState[] oldbss, long[] targets, int size) {
+		for (int iter = 0; iter < size; iter++) {
+			if (targets[iter] == pos.asLong()) {
+				return oldbss[iter];
+			}
 		}
 		return getState(pos);
+	}
+
+	public BlockState getOldStateWhenMany(BlockPos pos) {
+		BlockState state = changeMap.get(pos.asLong());
+		return state != null ? state : getState(pos);
 	}
 
 	/**

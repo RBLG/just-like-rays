@@ -2,6 +2,8 @@ package teluri.mods.jlrays.light;
 
 import org.joml.Vector3i;
 
+import net.minecraft.core.BlockPos;
+
 /**
  * naive implementation of the Face Based GBV algorithm, which is an evolution of GBV that attribute a value per face, instead of per voxel. <br>
  * this come with the precision of 18 neigbors 3d GBV but without the leaks that happen with anything further than 6neigbors. <br>
@@ -61,6 +63,16 @@ public class NaiveFbGbvSightEngine {
 		void consume(Vector3i xyz, float ovisi, float nvisi);
 	}
 
+	@FunctionalInterface
+	public static interface IBlockUpdateIterator {
+		void forEach(IBlockUpdateStep cons);
+	}
+
+	@FunctionalInterface
+	public static interface IBlockUpdateStep {
+		boolean consume(int x, int y, int z);
+	}
+
 	public static int sum(Vector3i vec) {
 		return vec.x + vec.y + vec.z;
 	}
@@ -84,7 +96,7 @@ public class NaiveFbGbvSightEngine {
 
 	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
 		// innacurate but diagonal walls dont cast shadows on themselves
-		//return max(val1, max(val2, val3));
+		// return max(val1, max(val2, val3));
 		// accurate output but might look worse.
 		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
@@ -121,6 +133,30 @@ public class NaiveFbGbvSightEngine {
 			if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
 				traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
 			}
+		}
+	}
+
+	public static void traceAllQuadrants2(Vector3i source, int range, IBlockUpdateIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+		for (Quadrant quadrant : QUADRANTS) {
+			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
+		}
+	}
+
+	public static void traceAllChangedQuadrants2(Vector3i source, int range, IBlockUpdateIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+		Vector3i vtmp = new Vector3i();
+		for (Quadrant quadrant : QUADRANTS) {
+			// TODO avoid checks if too much updates?
+			iter.forEach((x, y, z) -> {
+				// if not in range to be impacted, skip it
+				int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
+				int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
+				int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
+				if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
+					traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
+					return true;
+				}
+				return false;
+			});
 		}
 	}
 
