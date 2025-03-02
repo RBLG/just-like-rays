@@ -32,20 +32,19 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	/**
 	 * modify emition and opacity of lava blockstates
 	 */
-	@Inject(method = "<init>*", at = @At("TAIL"))
-	protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
-		
-	}
+	//@Inject(method = "<init>*", at = @At("TAIL"))
+	//protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
+	//}
 	
 	/**
-	 * modify fields based on description id. to prepare
+	 * modify fields based on description id. will be used for settings
 	 * @param info
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
 		if (Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
 
-			this.lightEmission = 10;
+			this.lightEmission = 7;
 			//this.lightBlock = 15; //cause issues with transparent blocks
 		}
 	}
