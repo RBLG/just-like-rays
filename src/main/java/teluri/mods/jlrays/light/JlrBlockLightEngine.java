@@ -117,6 +117,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return 0; // return value is unused anyway
 	}
 
+	/**
+	 * searches for light sources visible from the updated block
+	 */
 	protected void evaluateImpactedSources(Vector3i pos, BlockState oldbs, BlockState newbs) {
 
 		long[] inrangepos = new long[changeMap.size()];
@@ -150,6 +153,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 
 	}
 
+	/**
+	 * updates light for all sources impacted by one or multiple block updates
+	 */
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
@@ -181,6 +187,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 	}
 
+	/**
+	 * put in inrangepos and inrangebs the positions and blockStates of block updates that are in range of the source
+	 */
 	protected int filterBlockUpdatesByRange(Vector3i source, long[] inrangepos, BlockState[] inrangebs, int range) {
 		Vector3i vtmp = new Vector3i();
 		int iter = 0;
@@ -197,12 +206,18 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return iter;
 	}
 
+	/**
+	 * return a provider adapted to the amount of block updates in range
+	 */
 	protected IAlphaProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size) {
 		MutableBlockPos mutpos = new MutableBlockPos();
 		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size);
 		return (xyz, quadr, hol) -> getAlphases(xyz, bsprov, quadr, hol, mutpos);
 	}
 
+	/**
+	 * return the fastest blockstate provider based on the amount of block updates in range
+	 */
 	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size) {
 		return switch (size) {
 		default/*             */ -> this::getOldStateWhenMany;
@@ -216,6 +231,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		};
 	}
 
+	/**
+	 * applies step to all positions in targets in size
+	 */
 	protected static void iterateOverUpdateList(IBlockUpdateStep step, long[] targets, int size) {
 		for (int it = 0; it < size; it++) {
 			long target = targets[it];
@@ -244,6 +262,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 	}
 
+	/**
+	 * get the transparency of a blockstate (0=opaque, 1=transparent)
+	 */
 	protected int getAlpha(BlockState state) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
 		return state.getLightBlock() <= 1 ? 1 : 0;
@@ -282,10 +303,16 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return hol;
 	}
 
+	/**
+	 * blockstate provider for when there's a single block updates in range
+	 */
 	public BlockState getOldStateWhen1(BlockPos pos, BlockState oldbs, long target) {
 		return target == pos.asLong() ? oldbs : getState(pos);
 	}
 
+	/**
+	 * blockstate provider for when there's a small amount of block updates in range
+	 */
 	public BlockState getOldStateWhenSome(BlockPos pos, BlockState[] oldbss, long[] targets, int size) {
 		for (int iter = 0; iter < size; iter++) {
 			if (targets[iter] == pos.asLong()) {
@@ -295,6 +322,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		return getState(pos);
 	}
 
+	/**
+	 * blockstate provider for when there's many block updates in range
+	 */
 	public BlockState getOldStateWhenMany(BlockPos pos) {
 		BlockState state = changeMap.get(pos.asLong());
 		return state != null ? state : getState(pos);
@@ -336,10 +366,16 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
 
+	/**
+	 * get the max range impacted by a source of given emission intensity
+	 */
 	public static int getRange(int emit) {
 		return (int) Math.ceil(Math.sqrt(emit * RANGE_EDGE_NUMBER));
 	}
 
+	/**
+	 * get the square of the max range impacted by a source of given emission intensity 
+	 */
 	public static float getRangeSquared(int emit) {
 		return emit * RANGE_EDGE_NUMBER;
 	}

@@ -52,11 +52,6 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	@FunctionalInterface
-	public static interface ISightConsumer {
-		void consume(Vector3i xyz, float visi);
-	}
-
-	@FunctionalInterface
 	public static interface ISightUpdateConsumer {
 		void consume(Vector3i xyz, float ovisi, float nvisi);
 	}
@@ -88,10 +83,16 @@ public class NaiveFbGbvSightEngine {
 		return (val1 * w1 + val2 * w2 + val3 * w3) / (w1 + w2 + w3);
 	}
 
+	/**
+	 * check if a quadrant should draw blocks when on an edge shared with another quadrant
+	 */
 	public static boolean isNotDuplicatedEdge(Quadrant quadr, int itr1, int itr2, int itr3) {
 		return (itr1 != 0 || 0 <= quadr.axis1.x) && (itr2 != 0 || 0 <= quadr.axis2.y) && (itr3 != 0 || 0 <= quadr.axis3.z);
 	}
 
+	/**
+	 * get the visibility value for the block based on the visibility values of the faces and their weights
+	 */
 	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
 		// innacurate but diagonal walls dont cast shadows on themselves
 		// return max(val1, max(val2, val3));
@@ -122,12 +123,18 @@ public class NaiveFbGbvSightEngine {
 		}
 	}
 
+	/**
+	 * scoute the visible area around a position when there is no block updates in range
+	 */
 	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceQuadrant(source, range, quadrant, aprov, scons, true);
 		}
 	}
 
+	/**
+	 * update quadrants impacted by a single block update (unused)
+	 */
 	public static void traceAllChangedQuadrants(Vector3i source, Vector3i target, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		Vector3i vtmp = new Vector3i();
 		for (Quadrant quadrant : QUADRANTS) {
@@ -140,18 +147,23 @@ public class NaiveFbGbvSightEngine {
 		}
 	}
 
+	/**
+	 * update the entire area around a source while handling block updates in range
+	 */
 	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
 		}
 	}
 
+	/**
+	 * update the quadrants around a source that are impacted by at least one block update
+	 */
 	public static void traceAllChangedQuadrants2(Vector3i source, int range, IBlockUpdateIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		Vector3i vtmp = new Vector3i();
+		// check if there's a block update in a quadrant and if so, update the quadrant
 		for (Quadrant quadrant : QUADRANTS) {
-			// TODO avoid checks if too much updates?
 			iter.forEach((x, y, z) -> {
-				// if not in range to be impacted, skip it
 				int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
 				int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
 				int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
@@ -165,7 +177,7 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	/**
-	 * run the FBGBV algorithm over a quadrant
+	 * run the FBGBV algorithm over a quadrant with no block updates in range
 	 * 
 	 * @param origin position of the source of the light
 	 * @param range  max range that is iterated over
