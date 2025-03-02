@@ -2,8 +2,6 @@ package teluri.mods.jlrays.light;
 
 import org.joml.Vector3i;
 
-import net.minecraft.core.BlockPos;
-
 /**
  * naive implementation of the Face Based GBV algorithm, which is an evolution of GBV that attribute a value per face, instead of per voxel. <br>
  * this come with the precision of 18 neigbors 3d GBV but without the leaks that happen with anything further than 6neigbors. <br>
@@ -109,9 +107,9 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightConsumer scons) {
+	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
 		for (Quadrant quadrant : QUADRANTS) {
-			traceQuadrant(source, range, quadrant, aprov, scons);
+			traceQuadrant(source, range, quadrant, aprov, scons, false);
 		}
 	}
 
@@ -121,6 +119,12 @@ public class NaiveFbGbvSightEngine {
 	public static void scoutAllQuadrants(Vector3i pos, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceChangedQuadrant(pos, range, quadrant, oaprov, naprov, sucons, true);
+		}
+	}
+
+	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
+		for (Quadrant quadrant : QUADRANTS) {
+			traceQuadrant(source, range, quadrant, aprov, scons, true);
 		}
 	}
 
@@ -136,7 +140,7 @@ public class NaiveFbGbvSightEngine {
 		}
 	}
 
-	public static void traceAllQuadrants2(Vector3i source, int range, IBlockUpdateIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
 		}
@@ -169,7 +173,7 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightConsumer scons) {
+	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
@@ -218,9 +222,11 @@ public class NaiveFbGbvSightEngine {
 
 					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
-						if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
+						if (scout) {
+							scons.consume(xyz, 1, 1);
+						} else if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
 							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
-							scons.consume(xyz, voxelvisi);
+							scons.consume(xyz, voxelvisi, voxelvisi);
 						}
 					}
 					// weights are similar to 18 neigbors 3d classic gbv
