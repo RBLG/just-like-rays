@@ -273,6 +273,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		BlockState get(BlockPos pos);
 	}
 
+	/**
+	 * handle shape based occlusion
+	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
 		mutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState state = bsprov.get(mutpos);
@@ -348,16 +351,6 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
-		// emit/dist-0.5 = 0
-		// emit/dist = 0.5
-		// emit = dist*0.5
-		// (dist*0.3)² = 2*emit
-		// dist*0.3*dist*0.3 = 2*emit
-		// dist²*0.09 = 2*emit
-		// dist² = 2*emit*11,11
-		// dist² = emit*22,22
-		// dist = sqrt(emit*22.22)
-		// -> getRange
 
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
