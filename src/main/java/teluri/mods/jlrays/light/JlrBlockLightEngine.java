@@ -1,7 +1,6 @@
 package teluri.mods.jlrays.light;
 
 import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
@@ -32,9 +31,9 @@ import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.Quadrant;
  * @since v0.0.1
  */
 public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
-	public static final float DISTANCE_RATIO = 0.3f;
+	public static final float DISTANCE_RATIO = 0.1f;
 	public static final float MINIMUM_VALUE = 0.5f;
-	public static final float RANGE_EDGE_NUMBER = 1 / (MINIMUM_VALUE * DISTANCE_RATIO * DISTANCE_RATIO); // number used to get the edge from the source intensity
+	public static final float RANGE_EDGE_NUMBER = 1 / (MINIMUM_VALUE * DISTANCE_RATIO); // number used to get the edge from the source intensity
 	public static final int MAX_RANGE = getRange(15); // range of the highest value emissive source possible. define how far to search for sources
 
 	// map of all the changes to process with the previous blockstate associated
@@ -161,7 +160,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		int newemit = newbs.getLightEmission();
 		int oldopacity = getAlpha(oldbs);
 		int newopacity = getAlpha(newbs);
-		if (oldopacity != newopacity && newopacity != 0) {
+		if ((oldopacity != newopacity || oldemit != newemit) && newopacity != 0) {
 			updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -345,10 +344,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
-		float vdistx = (xyz.x - source.x) * DISTANCE_RATIO;
-		float vdisty = (xyz.y - source.y) * DISTANCE_RATIO;
-		float vdistz = (xyz.z - source.z) * DISTANCE_RATIO;
-		float dist = 1 + Vector3f.lengthSquared(vdistx, vdisty, vdistz);
+		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
 
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
@@ -374,7 +370,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	}
 
 	/**
-	 * get the square of the max range impacted by a source of given emission intensity 
+	 * get the square of the max range impacted by a source of given emission intensity
 	 */
 	public static float getRangeSquared(int emit) {
 		return emit * RANGE_EDGE_NUMBER;
