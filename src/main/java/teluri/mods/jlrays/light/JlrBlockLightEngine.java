@@ -123,6 +123,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public int runLightUpdates() {
 		Vector3i vtmp = new Vector3i();
 
+		//scout the area around block updates to find light sources that need to be updated
 		sectionChangeMap.forEach((longpos, secupd) -> {
 			if (secupd.isSingleBlock()) {
 				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
@@ -131,22 +132,21 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 				groupApproximateImpactedSources(secupd);
 			}
 		});
-
-		changeMap.forEach((longpos, prev) -> {
-			mutPos3.set(longpos);
-			BlockState curr = getState(mutPos3);
-			// vtmp.set(mutPos3.getX(), mutPos3.getY(), mutPos3.getZ());
-			// evaluateImpactedSources(vtmp);
-			if (getAlpha(curr) == 0) {
-				storage.setStoredLevel(longpos, 0);
-			}
-		});
+		//updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
 			mutPos3.set(longpos);
 			BlockState curr = getState(mutPos3);
 			vtmp.set(mutPos3.getX(), mutPos3.getY(), mutPos3.getZ());
 			updateImpactedSource(vtmp, prev, curr);
 
+		});
+		// as a security, set all newly opaque blocks' light to 0
+		changeMap.forEach((longpos, prev) -> { 
+			mutPos3.set(longpos);
+			BlockState curr = getState(mutPos3);
+			if (getAlpha(curr) == 0) {
+				storage.setStoredLevel(longpos, 0);
+			}
 		});
 		changeMap.clear();
 		changeMap.trim(512);
@@ -197,6 +197,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		}
 	}
 
+	/**
+	 * iterate over the zone that can be impacted by an update in the SectionUpdate bounds
+	 */
 	protected void groupApproximateImpactedSources(SectionUpdate secupd) {
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
