@@ -9,6 +9,10 @@ This mod is in early alpha. Core content is there but there be dragons! (and edg
 
 - On adding/removing/updating this mod, do Edit>Optimize world for compatibility
 
+#### Contact:
+
+- you can contact me on ![discord](https://discord.gg/zEnc4ZXSmk)
+
 ##### Todo/Roadmap:
 
 - tweaking mc border chunk system to fix ranges above 15
