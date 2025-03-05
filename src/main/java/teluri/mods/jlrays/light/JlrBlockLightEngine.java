@@ -128,7 +128,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public int runLightUpdates() {
 		Vector3i vtmp = new Vector3i();
 
-		//scout the area around block updates to find light sources that need to be updated
+		// scout the area around block updates to find light sources that need to be updated
 		sectionChangeMap.forEach((longpos, secupd) -> {
 			if (secupd.isSingleBlock()) {
 				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
@@ -137,7 +137,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 				groupApproximateImpactedSources(secupd);
 			}
 		});
-		//updates light sources that need to be updated
+		// updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
 			mutPos3.set(longpos);
 			BlockState curr = getState(mutPos3);
@@ -231,11 +231,11 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-        int oldopacity = getAlpha(new BlockPos(source.x, source.y, source. z), oldbs, level);
-        int newopacity = getAlpha(new BlockPos(source.x, source.y, source. z), newbs, level);
-        if ((oldopacity != newopacity || oldemit != newemit) && newopacity != 0) {
-            updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
-        }
+		int oldopacity = getAlpha(new BlockPos(source.x, source.y, source.z), oldbs, level);
+		int newopacity = getAlpha(new BlockPos(source.x, source.y, source.z), newbs, level);
+		if ((oldopacity != newopacity || oldemit != newemit) && newopacity != 0) {
+			updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
+		}
 		int range = getRange(Math.max(oldemit, newemit));
 
 		long[] inrangepos = new long[changeMap.size()];
@@ -353,7 +353,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 * handle shape based occlusion
 	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
-		mutpos.set(xyz.x, xyz.y, xyz.z);
+		mutpos.set(xyz.x, xyz.y, xyz.z); // WARNING: MUTPOS GET REUSED
+		long longpos = mutpos.asLong();
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(mutpos, state, level);
@@ -364,25 +365,31 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
 
-			BlockPos state1Pos = mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z);
-			BlockPos state2Pos = mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z);
-			BlockPos state3Pos = mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z);
-			BlockState state1 = bsprov.get(state1Pos);
-			BlockState state2 = bsprov.get(state2Pos);
-			BlockState state3 = bsprov.get(state3Pos);
-			hol.f1 = shapeOccludes(mutpos.asLong(), state, state1Pos.asLong(), state1, d1) ? 0 : 1;
-			hol.f2 = shapeOccludes(mutpos.asLong(), state, state2Pos.asLong(), state2, d2) ? 0 : 1;
-			hol.f3 = shapeOccludes(mutpos.asLong(), state, state2Pos.asLong(), state3, d3) ? 0 : 1;
+			BlockState state1 = bsprov.get(mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
+			long longpos1 = mutpos.asLong();
+			
+			BlockState state2 = bsprov.get(mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
+			long longpos2 = mutpos.asLong();
+			
+			BlockState state3 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
+			long longpos3 = mutpos.asLong();
+			
+			hol.f1 = shapeOccludes(longpos, state, longpos1, state1, d1) ? 0 : 1;
+			hol.f2 = shapeOccludes(longpos, state, longpos2, state2, d2) ? 0 : 1;
+			hol.f3 = shapeOccludes(longpos, state, longpos3, state3, d3) ? 0 : 1;
 
-			BlockPos state4Pos = mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z);
-			BlockPos state5Pos = mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z);
-			BlockPos state6Pos = mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z);
-			BlockState state4 = bsprov.get(state4Pos);
-			BlockState state5 = bsprov.get(state5Pos);
-			BlockState state6 = bsprov.get(state6Pos);
-			hol.f4 = shapeOccludes(mutpos.asLong(), state, state4Pos.asLong(), state4, d1.getOpposite()) ? 0 : 1;
-			hol.f5 = shapeOccludes(mutpos.asLong(), state, state5Pos.asLong(), state5, d2.getOpposite()) ? 0 : 1;
-			hol.f6 = shapeOccludes(mutpos.asLong(), state, state6Pos.asLong(), state6, d3.getOpposite()) ? 0 : 1;
+			BlockState state4 = bsprov.get(mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
+			long longpos4 = mutpos.asLong();
+			
+			BlockState state5 = bsprov.get(mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
+			long longpos5 = mutpos.asLong();
+			
+			BlockState state6 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
+			long longpos6 = mutpos.asLong();
+			
+			hol.f4 = shapeOccludes(longpos, state, longpos4, state4, d1.getOpposite()) ? 0 : 1;
+			hol.f5 = shapeOccludes(longpos, state, longpos5, state5, d2.getOpposite()) ? 0 : 1;
+			hol.f6 = shapeOccludes(longpos, state, longpos6, state6, d3.getOpposite()) ? 0 : 1;
 		}
 		return hol;
 	}
