@@ -47,13 +47,10 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public static class SectionUpdate {
 		public int x1, y1, z1, x2, y2, z2;
 
-		public SectionUpdate(int nx1, int ny1, int nz1, int nx2, int ny2, int nz2) {
-			x1 = nx1;
-			y1 = ny1;
-			z1 = nz1;
-			x2 = nx2;
-			y2 = ny2;
-			z2 = nz2;
+		public SectionUpdate(int x, int y, int z) {
+			x1 = x2 = x;
+			y1 = y2 = y;
+			z1 = z2 = z;
 		}
 
 		public boolean isSingleBlock() {
@@ -107,7 +104,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 
 			SectionUpdate secupd = sectionChangeMap.get(secpos);
 			if (secupd == null) {
-				secupd = new SectionUpdate(pos.getX(), pos.getY(), pos.getZ(), pos.getX(), pos.getY(), pos.getZ());
+				secupd = new SectionUpdate(pos.getX(), pos.getY(), pos.getZ());
 				sectionChangeMap.put(secpos, secupd);
 			} else {
 				secupd.merge(pos);
@@ -131,7 +128,7 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public int runLightUpdates() {
 		Vector3i vtmp = new Vector3i();
 
-		this.sectionChangeMap.forEach((longpos, secupd) -> {
+		sectionChangeMap.forEach((longpos, secupd) -> {
 			if (secupd.isSingleBlock()) {
 				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
 				evaluateImpactedSources(vtmp);
@@ -156,14 +153,17 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			updateImpactedSource(vtmp, prev, curr);
 
 		});
-		this.changeMap.clear();
-		this.changeMap.trim(512);
+		changeMap.clear();
+		changeMap.trim(512);
 
-		this.sourceChangeMap.clear();
-		this.sourceChangeMap.trim(512);
+		sourceChangeMap.clear();
+		sourceChangeMap.trim(512);
 
-		this.storage.markNewInconsistencies(this);
-		this.storage.swapSectionMap();
+		sectionChangeMap.clear();
+		sectionChangeMap.trim(512);
+
+		storage.markNewInconsistencies(this);
+		storage.swapSectionMap();
 		return 0; // return value is unused anyway
 	}
 
