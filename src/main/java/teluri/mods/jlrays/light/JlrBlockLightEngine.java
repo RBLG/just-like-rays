@@ -1,20 +1,17 @@
 package teluri.mods.jlrays.light;
 
-import java.util.ArrayList;
-
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.BlockGetter;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import net.minecraft.util.Mth;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
@@ -36,15 +33,39 @@ import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.Quadrant;
  * @since v0.0.1
  */
 public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
-	public static final float DISTANCE_RATIO = 0.3f;
+	public static final float DISTANCE_RATIO = 0.1f;
 	public static final float MINIMUM_VALUE = 0.5f;
-	public static final float RANGE_EDGE_NUMBER = 1 / (MINIMUM_VALUE * DISTANCE_RATIO * DISTANCE_RATIO); // number used to get the edge from the source intensity
+	public static final float RANGE_EDGE_NUMBER = 1 / (MINIMUM_VALUE * DISTANCE_RATIO); // number used to get the edge from the source intensity
 	public static final int MAX_RANGE = getRange(15); // range of the highest value emissive source possible. define how far to search for sources
 
 	// map of all the changes to process with the previous blockstate associated
 	private final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
 
 	private final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
+	private final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<SectionUpdate>();
+
+	public static class SectionUpdate {
+		public int x1, y1, z1, x2, y2, z2;
+
+		public SectionUpdate(int x, int y, int z) {
+			x1 = x2 = x;
+			y1 = y2 = y;
+			z1 = z2 = z;
+		}
+
+		public boolean isSingleBlock() {
+			return x1 == x2 && y1 == y2 && z1 == z2;
+		}
+
+		public void merge(BlockPos pos) {
+			x1 = Math.min(x1, pos.getX());
+			y1 = Math.min(y1, pos.getY());
+			z1 = Math.min(z1, pos.getZ());
+			x2 = Math.min(x2, pos.getX());
+			y2 = Math.min(y2, pos.getY());
+			z2 = Math.min(z2, pos.getZ());
+		}
+	}
 
 	private BlockGetter level;
 
@@ -63,24 +84,34 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	@Override
 	public void checkBlock(BlockPos pos) {
 		// long packed = 0;
-		if (pos instanceof ShinyBlockPos) {
-			ShinyBlockPos rpos = (ShinyBlockPos) pos;
-			BlockState prev = rpos.previous;
-			BlockState curr = rpos.current;
+		if (!(pos instanceof ShinyBlockPos)) {
+			JustLikeRays.LOGGER.error("checkBlock in destination to the light engine was not provided a ShinyBlockPos");
+			return;
+		}
+		ShinyBlockPos rpos = (ShinyBlockPos) pos;
+		BlockState prev = rpos.previous;
+		BlockState curr = rpos.current;
 
-			long secpos = SectionPos.blockToSection(pos.asLong());
-			if (storage.storingLightForSection(secpos)) {
-				if (getAlpha(rpos, prev, level) != getAlpha(rpos, curr, level) || prev.useShapeForLightOcclusion() || curr.useShapeForLightOcclusion()) {
-					changeMap.putIfAbsent(pos.asLong(), prev);
-				}
-				if (prev.getLightEmission() != curr.getLightEmission()) {
-					sourceChangeMap.putIfAbsent(pos.asLong(), prev);
-				}
+		long secpos = SectionPos.blockToSection(pos.asLong());
+		if (!storage.storingLightForSection(secpos)) {
+			return;
+		}
+		if (prev.getLightEmission() != curr.getLightEmission()) {
+			sourceChangeMap.putIfAbsent(pos.asLong(), prev);
+		}
+		if (getAlpha(rpos, prev, level) != getAlpha(rpos, curr, level) || prev.useShapeForLightOcclusion() || curr.useShapeForLightOcclusion()) {
+			changeMap.putIfAbsent(pos.asLong(), prev);
+
+			SectionUpdate secupd = sectionChangeMap.get(secpos);
+			if (secupd == null) {
+				secupd = new SectionUpdate(pos.getX(), pos.getY(), pos.getZ());
+				sectionChangeMap.put(secpos, secupd);
+			} else {
+				secupd.merge(pos);
 			}
 
-		} else {
-			JustLikeRays.LOGGER.error("checkBlock in destination to the light engine was not provided a ShinyBlockPos");
 		}
+
 	}
 
 	@Override
@@ -97,15 +128,16 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public int runLightUpdates() {
 		Vector3i vtmp = new Vector3i();
 
-		changeMap.forEach((longpos, prev) -> {
-			mutPos3.set(longpos);
-			BlockState curr = getState(mutPos3);
-			vtmp.set(mutPos3.getX(), mutPos3.getY(), mutPos3.getZ());
-			evaluateImpactedSources(vtmp, prev, curr);
-			if (getAlpha(mutPos3, curr, level) == 0) {
-				storage.setStoredLevel(longpos, 0);
+		//scout the area around block updates to find light sources that need to be updated
+		sectionChangeMap.forEach((longpos, secupd) -> {
+			if (secupd.isSingleBlock()) {
+				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
+				evaluateImpactedSources(vtmp);
+			} else { // if there's more than one update in the per section group, use an alternative to single block sight
+				groupApproximateImpactedSources(secupd);
 			}
 		});
+		//updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
 			mutPos3.set(longpos);
 			BlockState curr = getState(mutPos3);
@@ -113,21 +145,32 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			updateImpactedSource(vtmp, prev, curr);
 
 		});
-		this.changeMap.clear();
-		this.changeMap.trim(512);
+		// as a security, set all newly opaque blocks' light to 0
+		changeMap.forEach((longpos, prev) -> {
+			mutPos3.set(longpos);
+			BlockState curr = getState(mutPos3);
+			if (getAlpha(mutPos3, curr, level) == 0) {
+				storage.setStoredLevel(longpos, 0);
+			}
+		});
+		changeMap.clear();
+		changeMap.trim(512);
 
-		this.sourceChangeMap.clear();
-		this.sourceChangeMap.trim(512);
+		sourceChangeMap.clear();
+		sourceChangeMap.trim(512);
 
-		this.storage.markNewInconsistencies(this);
-		this.storage.swapSectionMap();
+		sectionChangeMap.clear();
+		sectionChangeMap.trim(512);
+
+		storage.markNewInconsistencies(this);
+		storage.swapSectionMap();
 		return 0; // return value is unused anyway
 	}
 
 	/**
 	 * searches for light sources visible from the updated block
 	 */
-	protected void evaluateImpactedSources(Vector3i pos, BlockState oldbs, BlockState newbs) {
+	protected void evaluateImpactedSources(Vector3i pos) {
 
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
@@ -157,7 +200,29 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 			IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
 			NaiveFbGbvSightEngine.scoutAllQuadrants(pos, MAX_RANGE, oaprov, naprov, scons);
 		}
+	}
 
+	/**
+	 * iterate over the zone that can be impacted by an update in the SectionUpdate bounds
+	 */
+	protected void groupApproximateImpactedSources(SectionUpdate secupd) {
+		// TODO need a check to avoid iterating over same areas
+		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
+		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
+
+		MutableBlockPos mutpos0 = new MutableBlockPos();
+		for (int itx = secupd.x1 - MAX_RANGE; itx < secupd.x2 + MAX_RANGE; itx++) {
+			for (int ity = secupd.y1 - MAX_RANGE; ity < secupd.y2 + MAX_RANGE; ity++) {
+				for (int itz = secupd.z1 - MAX_RANGE; itz < secupd.z2 + MAX_RANGE; itz++) {
+					mutpos0.set(itx, ity, itz);
+					BlockState blockState = this.getState(mutpos0);
+					int sourceemit = blockState.getLightEmission();
+					if (sourceemit != 0) {
+						sourceChangeMap.putIfAbsent(mutpos0.asLong(), blockState);
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -166,11 +231,11 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		int oldopacity = getAlpha(new BlockPos(source.x, source.y, source. z), oldbs, level);
-		int newopacity = getAlpha(new BlockPos(source.x, source.y, source. z), newbs, level);
-		if (oldopacity != newopacity && newopacity != 0) {
-			updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
-		}
+        int oldopacity = getAlpha(new BlockPos(source.x, source.y, source. z), oldbs, level);
+        int newopacity = getAlpha(new BlockPos(source.x, source.y, source. z), newbs, level);
+        if ((oldopacity != newopacity || oldemit != newemit) && newopacity != 0) {
+            updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
+        }
 		int range = getRange(Math.max(oldemit, newemit));
 
 		long[] inrangepos = new long[changeMap.size()];
@@ -182,7 +247,10 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, this::getState, quadr, hol, mutpos);
 
 		if (size == 0) {
-			NaiveFbGbvSightEngine.traceAllQuadrants(source, range, naprov, consu); // if no updates are around, its always an emit change!
+			if (oldemit != newemit) {
+				// if no updates are around, its always an emit change, unless it was a bad approximation
+				NaiveFbGbvSightEngine.traceAllQuadrants(source, range, naprov, consu);
+			}
 		} else {
 			IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
 			if (oldemit != newemit) {
@@ -281,6 +349,9 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		BlockState get(BlockPos pos);
 	}
 
+	/**
+	 * handle shape based occlusion
+	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
 		mutpos.set(xyz.x, xyz.y, xyz.z);
 		BlockState state = bsprov.get(mutpos);
@@ -358,23 +429,10 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
-		float vdistx = (xyz.x - source.x) * DISTANCE_RATIO;
-		float vdisty = (xyz.y - source.y) * DISTANCE_RATIO;
-		float vdistz = (xyz.z - source.z) * DISTANCE_RATIO;
-		float dist = 1 + Vector3f.lengthSquared(vdistx, vdisty, vdistz);
+		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
 
 		int oival = ovisi == 0 ? 0 : Mth.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Mth.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
-		// emit/dist-0.5 = 0
-		// emit/dist = 0.5
-		// emit = dist*0.5
-		// (dist*0.3)² = 2*emit
-		// dist*0.3*dist*0.3 = 2*emit
-		// dist²*0.09 = 2*emit
-		// dist² = 2*emit*11,11
-		// dist² = emit*22,22
-		// dist = sqrt(emit*22.22)
-		// -> getRange
 
 		this.storage.addStoredLevel(longpos, -oival + nival);
 	}
