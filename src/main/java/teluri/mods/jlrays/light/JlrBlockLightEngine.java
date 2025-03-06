@@ -1,6 +1,5 @@
 package teluri.mods.jlrays.light;
 
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
@@ -11,10 +10,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
-import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.AlphaHolder;
@@ -30,53 +27,31 @@ import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.Quadrant;
  * @author RBLG
  * @since v0.0.1
  */
-public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
+public class JlrBlockLightEngine {
 	public static final float DISTANCE_RATIO = 0.1f;
 	public static final float MINIMUM_VALUE = 0.5f;
 	public static final float RANGE_EDGE_NUMBER = 1 / (MINIMUM_VALUE * DISTANCE_RATIO); // number used to get the edge from the source intensity
 	public static final int MAX_RANGE = getRange(15); // range of the highest value emissive source possible. define how far to search for sources
 
 	// map of all the changes to process with the previous blockstate associated
-	private final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
+	protected final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
 
-	private final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
-	private final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<SectionUpdate>();
+	protected final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
+	protected final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<SectionUpdate>();
 
-	public static class SectionUpdate {
-		public int x1, y1, z1, x2, y2, z2;
+	protected JlrLightSectionStorage storage;
+	protected JlrBlockLightEngineAdapter adapter;
+	protected LightChunkGetter chunkSource;
 
-		public SectionUpdate(int x, int y, int z) {
-			x1 = x2 = x;
-			y1 = y2 = y;
-			z1 = z2 = z;
-		}
-
-		public boolean isSingleBlock() {
-			return x1 == x2 && y1 == y2 && z1 == z2;
-		}
-
-		public void merge(BlockPos pos) {
-			x1 = Math.min(x1, pos.getX());
-			y1 = Math.min(y1, pos.getY());
-			z1 = Math.min(z1, pos.getZ());
-			x2 = Math.min(x2, pos.getX());
-			y2 = Math.min(y2, pos.getY());
-			z2 = Math.min(z2, pos.getZ());
-		}
-	}
-
-	public JlrBlockLightEngine(LightChunkGetter chunkSource) {
-		this(chunkSource, new JlrLightSectionStorage(chunkSource));
-	}
-
-	protected JlrBlockLightEngine(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
-		super(chunkSource, storage);
+	public JlrBlockLightEngine(JlrLightSectionStorage nstorage, LightChunkGetter nchunkSource, JlrBlockLightEngineAdapter nadapter) {
+		storage = nstorage;
+		adapter = nadapter;
+		chunkSource = nchunkSource;
 	}
 
 	/**
 	 * fired when a block update happen. will read the previous and current blockstate hidden in the shiny blockpos and queue the change for a light update
 	 */
-	@Override
 	public void checkBlock(BlockPos pos) {
 		// long packed = 0;
 		if (!(pos instanceof ShinyBlockPos)) {
@@ -109,21 +84,22 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 
 	}
 
-	@Override
 	public boolean hasLightWork() {
-		return !changeMap.isEmpty() || super.hasLightWork();
+		return !changeMap.isEmpty();
 	}
 
-	private final MutableBlockPos mutPos3 = new MutableBlockPos();
+	public BlockState getState(BlockPos pos) {
+		return adapter.getState(pos);
+	}
 
 	/**
 	 * applies all updates in the queue
 	 */
-	@Override
-	public int runLightUpdates() {
+	public void runLightUpdates() {
+		MutableBlockPos mbptmp = new MutableBlockPos();
 		Vector3i vtmp = new Vector3i();
 
-		//scout the area around block updates to find light sources that need to be updated
+		// scout the area around block updates to find light sources that need to be updated
 		sectionChangeMap.forEach((longpos, secupd) -> {
 			if (secupd.isSingleBlock()) {
 				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
@@ -132,18 +108,18 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 				groupApproximateImpactedSources(secupd);
 			}
 		});
-		//updates light sources that need to be updated
+		// updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
-			mutPos3.set(longpos);
-			BlockState curr = getState(mutPos3);
-			vtmp.set(mutPos3.getX(), mutPos3.getY(), mutPos3.getZ());
+			mbptmp.set(longpos);
+			BlockState curr = getState(mbptmp);
+			vtmp.set(mbptmp.getX(), mbptmp.getY(), mbptmp.getZ());
 			updateImpactedSource(vtmp, prev, curr);
 
 		});
 		// as a security, set all newly opaque blocks' light to 0
-		changeMap.forEach((longpos, prev) -> { 
-			mutPos3.set(longpos);
-			BlockState curr = getState(mutPos3);
+		changeMap.forEach((longpos, prev) -> {
+			mbptmp.set(longpos);
+			BlockState curr = getState(mbptmp);
 			if (getAlpha(curr) == 0) {
 				storage.setStoredLevel(longpos, 0);
 			}
@@ -157,9 +133,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 		sectionChangeMap.clear();
 		sectionChangeMap.trim(512);
 
-		storage.markNewInconsistencies(this);
+		storage.markNewInconsistencies(adapter);
 		storage.swapSectionMap();
-		return 0; // return value is unused anyway
 	}
 
 	/**
@@ -316,9 +291,8 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	/**
 	 * in a chunk, compute all emition for each sources in the chunk
 	 */
-	@Override
 	public void propagateLightSources(ChunkPos chunkPos) {
-		this.setLightEnabled(chunkPos, true);
+		adapter.setLightEnabled(chunkPos, true);
 		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
 		if (lightChunk != null) {
 			lightChunk.findBlockLightSources((blockPos, blockState) -> {
@@ -349,31 +323,39 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
 		mutpos.set(xyz.x, xyz.y, xyz.z);
+		long longpos = mutpos.asLong();
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(state);
-		if (hol.block == 0 || isEmptyShape(state)) {
+		if (hol.block == 0 || JlrBlockLightEngineAdapter.isEmptyShape(state)) {
 			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
 		} else {
 			Direction d1 = 0 < quadr.axis1().x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
+			Direction d4 = d1.getOpposite();
+			Direction d5 = d1.getOpposite();
+			Direction d6 = d1.getOpposite();
 
-			BlockState state1 = bsprov.get(mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
-			BlockState state2 = bsprov.get(mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
-			BlockState state3 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
-			hol.f1 = shapeOccludes(state, state1, d1) ? 0 : 1;
-			hol.f2 = shapeOccludes(state, state2, d2) ? 0 : 1;
-			hol.f3 = shapeOccludes(state, state3, d3) ? 0 : 1;
+			// previous
+			hol.f1 = getFaceAlpha(longpos, state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
+			hol.f2 = getFaceAlpha(longpos, state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
+			hol.f3 = getFaceAlpha(longpos, state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
 
-			BlockState state4 = bsprov.get(mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
-			BlockState state5 = bsprov.get(mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
-			BlockState state6 = bsprov.get(mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
-			hol.f4 = shapeOccludes(state, state4, d1.getOpposite()) ? 0 : 1;
-			hol.f5 = shapeOccludes(state, state5, d2.getOpposite()) ? 0 : 1;
-			hol.f6 = shapeOccludes(state, state6, d3.getOpposite()) ? 0 : 1;
+			// next
+			hol.f4 = getFaceAlpha(longpos, state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
+			hol.f5 = getFaceAlpha(longpos, state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
+			hol.f6 = getFaceAlpha(longpos, state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
 		}
 		return hol;
+	}
+
+	/**
+	 * get an adjacent blockstate and check if light can pass from one to the other block
+	 */
+	protected float getFaceAlpha(long curpos, BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
+		BlockState otherstate = bsprov.get(otherpos);
+		return adapter.shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
 
 	/**
@@ -439,30 +421,4 @@ public class JlrBlockLightEngine extends LightEngine<JlrLightSectionStorage.JlrD
 	public static float getRangeSquared(int emit) {
 		return emit * RANGE_EDGE_NUMBER;
 	}
-
-	/**
-	 * receive light level data on loading chunks
-	 */
-	@Override
-	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
-		if (data != null && !(data instanceof ByteDataLayer)) {
-			JustLikeRays.LOGGER.warn("block light data layer isnt byte sized");
-		}
-		super.queueSectionData(sectionPos, data);
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-
-	@Deprecated
-	@Override
-	protected void checkNode(long packedPos) {}
-
-	@Deprecated
-	@Override
-	protected void propagateIncrease(long packedPos, long queueEntry, int lightLevel) {}
-
-	@Deprecated
-	@Override
-	protected void propagateDecrease(long packedPos, long lightLevel) {}
-
 }
