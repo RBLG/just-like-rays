@@ -1,21 +1,24 @@
 package teluri.mods.jlrays.light;
 
+import java.util.function.BiConsumer;
+
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.light.JlrBlockLightEngine.ILightStorage;
 
 /**
  * @author RBLG
  * @since v0.0.7
  */
-public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> {
+public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> implements ILightStorage {
 
 	protected final JlrBlockLightEngine engine;
 
@@ -25,7 +28,8 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 
 	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
-		engine = new JlrBlockLightEngine(storage, chunkSource, this);
+
+		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this::shapeOccludes, this);
 	}
 
 	@Override
@@ -67,8 +71,11 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 
 	}
 
-	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction direction) {
-		return super.shapeOccludes(state1, state2, direction);
+	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
+		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
+		if (lightChunk != null) {
+			lightChunk.findBlockLightSources(consumer);
+		}
 	}
 
 	@Deprecated
@@ -83,4 +90,34 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	@Override
 	protected void propagateDecrease(long packedPos, long lightLevel) {}
 
+	@Override
+	public void setLevel(long pos, int value) {
+		this.storage.setStoredLevel(pos, value);
+	}
+
+	@Override
+	public void addLevel(long pos, int value) {
+		this.storage.addStoredLevel(pos, value);
+	}
+
+	@Override
+	public int getLevel(long pos) {
+		return this.storage.getStoredLevel(pos);
+	}
+
+	@Override
+	public boolean storingLightForSection(long secpos) {
+		return storage.storingLightForSection(secpos);
+	}
+
+	@Override
+	public void onLightUpdateCompleted() {
+		storage.markNewInconsistencies(this);
+		storage.swapSectionMap();
+	}
+
+	@Override
+	public void setLightEnabled(ChunkPos chunkPos, boolean enabled) {
+		super.setLightEnabled(chunkPos, enabled);
+	}
 }
