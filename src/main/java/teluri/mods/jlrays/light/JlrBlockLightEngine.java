@@ -1,5 +1,7 @@
 package teluri.mods.jlrays.light;
 
+import java.util.function.BiConsumer;
+
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
@@ -12,8 +14,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LightChunk;
-import net.minecraft.world.level.chunk.LightChunkGetter;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.AlphaHolder;
@@ -37,20 +37,23 @@ public class JlrBlockLightEngine {
 
 	// map of all the changes to process with the previous blockstate associated
 	protected final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
-
 	protected final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
 	protected final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<SectionUpdate>();
 
-	protected JlrLightSectionStorage storage;
-	protected JlrBlockLightEngineAdapter adapter;
-	protected LightChunkGetter chunkSource;
+	protected final ILightSourceFinder lightSourceFinder;
+	protected final IBlockStateProvider blockStateProvider;
+	protected final IShapeOcclusionSolver shapeOcclusionSolver;
+	protected final ILightStorage lightStorage;
 
     private BlockGetter level;
 
-	public JlrBlockLightEngine(JlrLightSectionStorage nstorage, LightChunkGetter nchunkSource, JlrBlockLightEngineAdapter nadapter) {
-		storage = nstorage;
-		adapter = nadapter;
-		chunkSource = nchunkSource;
+	public JlrBlockLightEngine(ILightSourceFinder nsourceFinder, IBlockStateProvider nBSProvider, IShapeOcclusionSolver nshapeOccSolver,
+			ILightStorage nLightStorage) {
+
+		lightSourceFinder = nsourceFinder;
+		blockStateProvider = nBSProvider;
+		shapeOcclusionSolver = nshapeOccSolver;
+		lightStorage = nLightStorage;
 	}
 
 	/**
@@ -67,7 +70,7 @@ public class JlrBlockLightEngine {
 		BlockState curr = rpos.current;
 
 		long secpos = SectionPos.blockToSection(pos.asLong());
-		if (!storage.storingLightForSection(secpos)) {
+		if (!lightStorage.storingLightForSection(secpos)) {
 			return;
 		}
 		if (prev.getLightEmission() != curr.getLightEmission()) {
@@ -93,7 +96,7 @@ public class JlrBlockLightEngine {
 	}
 
 	public BlockState getState(BlockPos pos) {
-		return adapter.getState(pos);
+		return this.blockStateProvider.get(pos);
 	}
 
 	/**
@@ -124,8 +127,8 @@ public class JlrBlockLightEngine {
 		changeMap.forEach((longpos, prev) -> {
 			mbptmp.set(longpos);
 			BlockState curr = getState(mbptmp);
-			if (getAlpha(BlockPos.of(longpos), curr, level) == 0) {
-				storage.setStoredLevel(longpos, 0);
+            if (getAlpha(BlockPos.of(longpos), curr, level) == 0) {
+				lightStorage.setLevel(longpos, 0);
 			}
 		});
 		changeMap.clear();
@@ -137,8 +140,7 @@ public class JlrBlockLightEngine {
 		sectionChangeMap.clear();
 		sectionChangeMap.trim(512);
 
-		storage.markNewInconsistencies(adapter);
-		storage.swapSectionMap();
+		this.lightStorage.onLightUpdateCompleted();
 	}
 
 	/**
@@ -296,18 +298,15 @@ public class JlrBlockLightEngine {
 	 * in a chunk, compute all emition for each sources in the chunk
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
-		adapter.setLightEnabled(chunkPos, true);
-		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
-		if (lightChunk != null) {
-			lightChunk.findBlockLightSources((blockPos, blockState) -> {
-				int i = blockState.getLightEmission();
-				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i);
-				MutableBlockPos mutpos = new MutableBlockPos();
-				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, this::getState, quadr, hol, mutpos);
-				NaiveFbGbvSightEngine.traceAllQuadrants(vpos, getRange(i), naprov, consu); // if no updates are around, its always an emit change!
-			});
-		}
+		lightStorage.setLightEnabled(chunkPos, true);
+		lightSourceFinder.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
+			int i = blockState.getLightEmission();
+			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i);
+			MutableBlockPos mutpos = new MutableBlockPos();
+			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, this::getState, quadr, hol, mutpos);
+			NaiveFbGbvSightEngine.traceAllQuadrants(vpos, getRange(i), naprov, consu); // if no updates are around, its always an emit change!
+		});
 	}
 
 	/**
@@ -318,16 +317,11 @@ public class JlrBlockLightEngine {
 		return state.getLightBlock(level, blockPos) <= 1 ? 1 : 0;
 	}
 
-	public static interface IBlockStateProvider {
-		BlockState get(BlockPos pos);
-	}
-
 	/**
 	 * handle shape based occlusion
 	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
 		mutpos.set(xyz.x, xyz.y, xyz.z);
-		long longpos = mutpos.asLong();
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(mutpos, state, level);
@@ -342,14 +336,14 @@ public class JlrBlockLightEngine {
 			Direction d6 = d1.getOpposite();
 
 			// previous
-			hol.f1 = getFaceAlpha(longpos, state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
-			hol.f2 = getFaceAlpha(longpos, state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
-			hol.f3 = getFaceAlpha(longpos, state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
+			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
+			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
+			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
 
 			// next
-			hol.f4 = getFaceAlpha(longpos, state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
-			hol.f5 = getFaceAlpha(longpos, state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
-			hol.f6 = getFaceAlpha(longpos, state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
+			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
+			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
+			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
 		}
 		return hol;
 	}
@@ -357,9 +351,9 @@ public class JlrBlockLightEngine {
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected float getFaceAlpha(long curpos, BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
+	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
 		BlockState otherstate = bsprov.get(otherpos);
-		return adapter.shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+		return shapeOcclusionSolver.shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
 
 	/**
@@ -401,7 +395,7 @@ public class JlrBlockLightEngine {
 	 */
 	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
 		long longpos = BlockPos.asLong(xyz.x, xyz.y, xyz.z);
-		if (!this.storage.storingLightForSection(SectionPos.blockToSection(longpos))) {
+		if (!this.lightStorage.storingLightForSection(SectionPos.blockToSection(longpos))) {
 			return;
 		}
 		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
@@ -409,7 +403,7 @@ public class JlrBlockLightEngine {
 		int oival = ovisi == 0 ? 0 : Mth.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Mth.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
 
-		this.storage.addStoredLevel(longpos, -oival + nival);
+		this.lightStorage.addLevel(longpos, -oival + nival);
 	}
 
 	/**
@@ -424,5 +418,31 @@ public class JlrBlockLightEngine {
 	 */
 	public static float getRangeSquared(int emit) {
 		return emit * RANGE_EDGE_NUMBER;
+	}
+
+	public static interface ILightStorage {
+		public void setLevel(long pos, int value);
+
+		public void addLevel(long pos, int value);
+
+		public int getLevel(long pos);
+
+		public boolean storingLightForSection(long secpos);
+
+		public void setLightEnabled(ChunkPos chunkPos, boolean enabled);
+
+		public void onLightUpdateCompleted();
+	}
+
+	public static interface ILightSourceFinder {
+		public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> step);
+	}
+
+	public static interface IBlockStateProvider {
+		BlockState get(BlockPos pos);
+	}
+
+	public static interface IShapeOcclusionSolver {
+		boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir);
 	}
 }
