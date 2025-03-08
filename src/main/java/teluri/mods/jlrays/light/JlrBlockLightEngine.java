@@ -320,9 +320,13 @@ public class JlrBlockLightEngine {
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(state);
-		if (hol.block == 0 || JlrBlockLightEngineAdapter.isEmptyShape(state)) {
+		if (hol.block == 0 || isEmptyShape(state)) {
 			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
-		} else {
+		}
+		// else if(hol.block==-1){
+		// //TODO lava handling secret sauce?
+		// }
+		else {
 			Direction d1 = 0 < quadr.axis1().x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
@@ -331,14 +335,14 @@ public class JlrBlockLightEngine {
 			Direction d6 = d1.getOpposite();
 
 			// previous
-			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
-			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
-			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
+			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
+			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z)) * hol.block;
+			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z)) * hol.block;
 
 			// next
-			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
-			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
-			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
+			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
+			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z)) * hol.block;
+			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z)) * hol.block;
 		}
 		return hol;
 	}
@@ -349,6 +353,10 @@ public class JlrBlockLightEngine {
 	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
 		BlockState otherstate = bsprov.get(otherpos);
 		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+	}
+
+	protected static boolean isEmptyShape(BlockState state) {
+		return !state.canOcclude() || !state.useShapeForLightOcclusion();
 	}
 
 	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
