@@ -29,7 +29,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 
-		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this::shapeOccludes, this);
+		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this);
 	}
 
 	@Override
