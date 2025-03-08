@@ -61,16 +61,6 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		super.queueSectionData(sectionPos, data);
 	}
 
-	@Override
-	public BlockState getState(BlockPos pos) {
-		return super.getState(pos);
-	}
-
-	public static boolean isEmptyShape(BlockState state) {
-		return LightEngine.isEmptyShape(state);
-
-	}
-
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
 		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
 		if (lightChunk != null) {

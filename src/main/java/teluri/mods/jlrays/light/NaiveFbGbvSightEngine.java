@@ -251,9 +251,9 @@ public class NaiveFbGbvSightEngine {
 					if (alpha.block == 0) {
 						face4 = face5 = face6 = 0; // skip the computation
 					} else {
-						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.block * alpha.f4;
-						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.block * alpha.f5;
-						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.block * alpha.f6;
+						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.f4;
+						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.f5;
+						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.f6;
 					}
 
 					// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
@@ -357,9 +357,9 @@ public class NaiveFbGbvSightEngine {
 					if (oahol.block == 0) {
 						oface4 = oface5 = oface6 = 0;
 					} else {
-						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oahol.block * oahol.f4;
-						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oahol.block * oahol.f5;
-						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oahol.block * oahol.f6;
+						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oahol.f4;
+						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oahol.f5;
+						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oahol.f6;
 					}
 					ovbuffer[index + 0] = oface4;
 					ovbuffer[index + size * 3 + 1] = oface5;
@@ -369,9 +369,9 @@ public class NaiveFbGbvSightEngine {
 					if (nahol.block == 0) {
 						nface4 = nface5 = nface6 = 0;
 					} else {
-						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nahol.block * nahol.f4;
-						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nahol.block * nahol.f5;
-						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nahol.block * nahol.f6;
+						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nahol.f4;
+						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nahol.f5;
+						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nahol.f6;
 					}
 					nvbuffer[index + 0] = nface4;
 					nvbuffer[index + size * 3 + 1] = nface5;
