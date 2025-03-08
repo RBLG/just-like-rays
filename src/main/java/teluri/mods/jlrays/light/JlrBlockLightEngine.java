@@ -14,6 +14,9 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.lighting.LightEngine;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
 import teluri.mods.jlrays.light.NaiveFbGbvSightEngine.AlphaHolder;
@@ -42,17 +45,14 @@ public class JlrBlockLightEngine {
 
 	protected final ILightSourceFinder lightSourceFinder;
 	protected final IBlockStateProvider blockStateProvider;
-	protected final IShapeOcclusionSolver shapeOcclusionSolver;
 	protected final ILightStorage lightStorage;
 
     private BlockGetter level;
 
-	public JlrBlockLightEngine(ILightSourceFinder nsourceFinder, IBlockStateProvider nBSProvider, IShapeOcclusionSolver nshapeOccSolver,
-			ILightStorage nLightStorage) {
+	public JlrBlockLightEngine(ILightSourceFinder nsourceFinder, IBlockStateProvider nBSProvider, ILightStorage nLightStorage) {
 
 		lightSourceFinder = nsourceFinder;
 		blockStateProvider = nBSProvider;
-		shapeOcclusionSolver = nshapeOccSolver;
 		lightStorage = nLightStorage;
 	}
 
@@ -353,7 +353,13 @@ public class JlrBlockLightEngine {
 	 */
 	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
 		BlockState otherstate = bsprov.get(otherpos);
-		return shapeOcclusionSolver.shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+	}
+
+	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
+		VoxelShape voxelShape = LightEngine.getOcclusionShape(state1, dir);
+		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(state2, dir.getOpposite());
+		return Shapes.faceShapeOccludes(voxelShape, voxelShape2);
 	}
 
 	/**
@@ -440,9 +446,5 @@ public class JlrBlockLightEngine {
 
 	public static interface IBlockStateProvider {
 		BlockState get(BlockPos pos);
-	}
-
-	public static interface IShapeOcclusionSolver {
-		boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir);
 	}
 }
