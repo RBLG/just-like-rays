@@ -56,7 +56,6 @@ public class JlrBlockLightEngine {
 	 * fired when a block update happen. will read the previous and current blockstate hidden in the shiny blockpos and queue the change for a light update
 	 */
 	public void checkBlock(BlockPos pos) {
-		// long packed = 0;
 		if (!(pos instanceof ShinyBlockPos)) {
 			JustLikeRays.LOGGER.error("checkBlock in destination to the light engine was not provided a ShinyBlockPos");
 			return;
