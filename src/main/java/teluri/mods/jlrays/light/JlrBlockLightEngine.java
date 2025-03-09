@@ -13,6 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -324,13 +325,14 @@ public class JlrBlockLightEngine {
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(mutpos, state, level);
-        if (hol.block == 0 || isEmptyShape(state)) {
-			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
-		}
-		// else if(hol.block==-1){
-		// //TODO lava handling secret sauce?
-		// }
-		else {
+		if (hol.block == 0 || isEmptyShape(state)) {
+			if (state.is(Blocks.LAVA)) { // hack to make lava opaque while still being bright
+				hol.f1 = hol.f2 = hol.f3 = hol.block;
+				hol.f4 = hol.f5 = hol.f6 = 0;
+			} else {
+				hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
+			}
+		} else {
 			Direction d1 = 0 < quadr.axis1().x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
