@@ -127,7 +127,7 @@ public class JlrBlockLightEngine {
 		changeMap.forEach((longpos, prev) -> {
 			mbptmp.set(longpos);
 			BlockState curr = getState(mbptmp);
-            if (getAlpha(BlockPos.of(longpos), curr, level) == 0) {
+			if (getAlpha(BlockPos.of(longpos), curr, level) == 0 && curr.getLightEmission() == 0) {
 				lightStorage.setLevel(longpos, 0);
 			}
 		});
@@ -207,10 +207,10 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		int oldopacity = getAlpha(new BlockPos(source.x, source.y, source.z), oldbs, level);
-		int newopacity = getAlpha(new BlockPos(source.x, source.y, source.z), newbs, level);
-		if ((oldopacity != newopacity || oldemit != newemit) && newopacity != 0) {
-			updateLight(source, source, oldopacity, newopacity, oldemit, newemit);
+		// int oldopacity = getAlpha(oldbs);
+		// int newopacity = getAlpha(newbs);
+		if (oldemit != newemit) {
+			updateLight(source, source, 1, 1, oldemit, newemit);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
 
@@ -314,7 +314,7 @@ public class JlrBlockLightEngine {
 	 */
 	protected int getAlpha(BlockPos blockPos, BlockState state, BlockGetter level) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
-		return state.getLightBlock(level, blockPos) <= 1 ? 1 : 0;
+		return (state.getLightBlock(level, blockPos) <= 1) ? 1 : 0;
 	}
 
 	/**
@@ -326,12 +326,7 @@ public class JlrBlockLightEngine {
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(mutpos, state, level);
 		if (hol.block == 0 || isEmptyShape(state)) {
-			if (state.is(Blocks.LAVA)) { // hack to make lava opaque while still being bright
-				hol.f1 = hol.f2 = hol.f3 = hol.block;
-				hol.f4 = hol.f5 = hol.f6 = 0;
-			} else {
-				hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
-			}
+			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
 		} else {
 			Direction d1 = 0 < quadr.axis1().x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
