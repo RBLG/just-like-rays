@@ -193,7 +193,7 @@ public class NaiveFbGbvSightEngine {
 		if (range <= 0) {
 			return;
 		}
-
+		// TODO implement early return
 		int size = range + 2;
 
 		// store the sight/visibility values of the last plane iterated over for incoming steps
