@@ -5,6 +5,7 @@ import java.util.function.BiConsumer;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
@@ -21,15 +22,18 @@ import teluri.mods.jlrays.light.JlrBlockLightEngine.ILightStorage;
 public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> implements ILightStorage {
 
 	protected final JlrBlockLightEngine engine;
+	protected BlockGetter level;
 
-	public JlrBlockLightEngineAdapter(LightChunkGetter chunkSource) {
-		this(chunkSource, new JlrLightSectionStorage(chunkSource));
+	public JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, BlockGetter nlevel) {
+		this(chunkSource, new JlrLightSectionStorage(chunkSource), nlevel);
+		this.level = nlevel;
+
 	}
 
-	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
+	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage, BlockGetter nlevel) {
 		super(chunkSource, storage);
 
-		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this);
+		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this, nlevel);
 	}
 
 	@Override

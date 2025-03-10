@@ -10,8 +10,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -45,12 +46,14 @@ public class JlrBlockLightEngine {
 	protected final ILightSourceFinder lightSourceFinder;
 	protected final IBlockStateProvider blockStateProvider;
 	protected final ILightStorage lightStorage;
+	protected final BlockGetter level;
 
-	public JlrBlockLightEngine(ILightSourceFinder nsourceFinder, IBlockStateProvider nBSProvider, ILightStorage nLightStorage) {
+	public JlrBlockLightEngine(ILightSourceFinder nsourceFinder, IBlockStateProvider nBSProvider, ILightStorage nLightStorage, BlockGetter nlevel) {
 
 		lightSourceFinder = nsourceFinder;
 		blockStateProvider = nBSProvider;
 		lightStorage = nLightStorage;
+		level = nlevel;
 	}
 
 	/**
@@ -72,7 +75,7 @@ public class JlrBlockLightEngine {
 		if (prev.getLightEmission() != curr.getLightEmission()) {
 			sourceChangeMap.putIfAbsent(pos.asLong(), prev);
 		}
-		if (getAlpha(prev) != getAlpha(curr) || prev.useShapeForLightOcclusion() || curr.useShapeForLightOcclusion()) {
+		if (getAlpha(prev, pos) != getAlpha(curr, pos) || prev.useShapeForLightOcclusion() || curr.useShapeForLightOcclusion()) {
 			changeMap.putIfAbsent(pos.asLong(), prev);
 
 			SectionUpdate secupd = sectionChangeMap.get(secpos);
@@ -123,7 +126,7 @@ public class JlrBlockLightEngine {
 		changeMap.forEach((longpos, prev) -> {
 			mbptmp.set(longpos);
 			BlockState curr = getState(mbptmp);
-			if (getAlpha(curr) == 0 && curr.getLightEmission() == 0) {
+			if (getAlpha(curr, mbptmp) == 0 && curr.getLightEmission() == 0) {
 				lightStorage.setLevel(longpos, 0);
 			}
 		});
@@ -308,9 +311,9 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the transparency of a blockstate (0=opaque, 1=transparent)
 	 */
-	protected int getAlpha(BlockState state) {
+	protected int getAlpha(BlockState state, BlockPos pos) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
-		return (state.getLightBlock() <= 1) ? 1 : 0;
+		return (state.getLightBlock(level, pos) <= 1) ? 1 : 0;
 	}
 
 	/**
@@ -318,9 +321,10 @@ public class JlrBlockLightEngine {
 	 */
 	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
 		mutpos.set(xyz.x, xyz.y, xyz.z);
+		long curpos = mutpos.asLong();
 		BlockState state = bsprov.get(mutpos);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
-		hol.block = getAlpha(state);
+		hol.block = getAlpha(state, mutpos);
 		if (hol.block == 0 || isEmptyShape(state)) {
 			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
 		} else {
@@ -328,18 +332,18 @@ public class JlrBlockLightEngine {
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
 			Direction d4 = d1.getOpposite();
-			Direction d5 = d1.getOpposite();
-			Direction d6 = d1.getOpposite();
+			Direction d5 = d2.getOpposite();
+			Direction d6 = d3.getOpposite();
 
 			// previous
-			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
-			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z)) * hol.block;
-			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z)) * hol.block;
+			hol.f1 = getFaceAlpha(curpos, state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
+			hol.f2 = getFaceAlpha(curpos, state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z)) * hol.block;
+			hol.f3 = getFaceAlpha(curpos, state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z)) * hol.block;
 
 			// next
-			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
-			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z)) * hol.block;
-			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z)) * hol.block;
+			hol.f4 = getFaceAlpha(curpos, state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
+			hol.f5 = getFaceAlpha(curpos, state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z)) * hol.block;
+			hol.f6 = getFaceAlpha(curpos, state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z)) * hol.block;
 		}
 		return hol;
 	}
@@ -347,18 +351,18 @@ public class JlrBlockLightEngine {
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
+	protected float getFaceAlpha(long curpos, BlockState curstate, IBlockStateProvider bsprov, Direction dir, MutableBlockPos otherpos) {
 		BlockState otherstate = bsprov.get(otherpos);
-		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+		return shapeOccludes(curpos, curstate, otherstate, dir, otherpos) ? 0 : 1;
 	}
 
 	protected static boolean isEmptyShape(BlockState state) {
 		return !state.canOcclude() || !state.useShapeForLightOcclusion();
 	}
 
-	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
-		VoxelShape voxelShape = LightEngine.getOcclusionShape(state1, dir);
-		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(state2, dir.getOpposite());
+	public boolean shapeOccludes(long pos1, BlockState state1, BlockState state2, Direction dir, MutableBlockPos tmp) {
+		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(level, tmp, state2, dir.getOpposite());
+		VoxelShape voxelShape = LightEngine.getOcclusionShape(level, tmp.set(pos1), state1, dir);
 		return Shapes.faceShapeOccludes(voxelShape, voxelShape2);
 	}
 
@@ -406,8 +410,8 @@ public class JlrBlockLightEngine {
 		}
 		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
 
-		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
-		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
+		int oival = ovisi == 0 ? 0 : Mth.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
+		int nival = nvisi == 0 ? 0 : Mth.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
 
 		this.lightStorage.addLevel(longpos, -oival + nival);
 	}
