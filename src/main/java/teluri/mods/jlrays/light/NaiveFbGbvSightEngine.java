@@ -103,7 +103,7 @@ public class NaiveFbGbvSightEngine {
 	/**
 	 * run the FBGBV algorithm over all quadrant
 	 * 
-	 * @param origin position of the source of the light
+	 * @param source position of the source of the light
 	 * @param range  max range that is iterated over
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
