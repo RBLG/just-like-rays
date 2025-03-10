@@ -328,8 +328,8 @@ public class JlrBlockLightEngine {
 			Direction d2 = 0 < quadr.axis2().y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3().z ? Direction.NORTH : Direction.SOUTH;
 			Direction d4 = d1.getOpposite();
-			Direction d5 = d1.getOpposite();
-			Direction d6 = d1.getOpposite();
+			Direction d5 = d2.getOpposite();
+			Direction d6 = d3.getOpposite();
 
 			// previous
 			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z)) * hol.block;
