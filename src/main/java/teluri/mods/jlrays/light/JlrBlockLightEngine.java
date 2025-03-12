@@ -335,15 +335,17 @@ public class JlrBlockLightEngine {
 			Direction d5 = d1.getOpposite();
 			Direction d6 = d1.getOpposite();
 
+			BlockPos curpos = new BlockPos(xyz.x, xyz.y, xyz.z);
+
 			// previous
-			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
-			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
-			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
+			hol.f1 = getFaceAlpha(state, bsprov, d1, curpos, mutpos.set(xyz.x - quadr.axis1().x, xyz.y, xyz.z));
+			hol.f2 = getFaceAlpha(state, bsprov, d2, curpos, mutpos.set(xyz.x, xyz.y - quadr.axis2().y, xyz.z));
+			hol.f3 = getFaceAlpha(state, bsprov, d3, curpos, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3().z));
 
 			// next
-			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
-			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
-			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
+			hol.f4 = getFaceAlpha(state, bsprov, d4, curpos, mutpos.set(xyz.x + quadr.axis1().x, xyz.y, xyz.z));
+			hol.f5 = getFaceAlpha(state, bsprov, d5, curpos, mutpos.set(xyz.x, xyz.y + quadr.axis2().y, xyz.z));
+			hol.f6 = getFaceAlpha(state, bsprov, d6, curpos, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3().z));
 		}
 		return hol;
 	}
@@ -351,14 +353,14 @@ public class JlrBlockLightEngine {
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
+	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos curpos, BlockPos otherpos) {
 		BlockState otherstate = bsprov.get(otherpos);
-		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
+		return shapeOccludes(curstate, otherstate, curpos, otherpos, dir) ? 0 : 1;
 	}
 
-	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
-		VoxelShape voxelShape = LightEngine.getOcclusionShape(state1, dir);
-		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(state2, dir.getOpposite());
+	public boolean shapeOccludes(BlockState state1, BlockState state2, BlockPos pos1, BlockPos pos2, Direction dir) {
+		VoxelShape voxelShape = LightEngine.getOcclusionShape(level, pos1, state1, dir);
+		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(level, pos2, state2, dir.getOpposite());
 		return Shapes.faceShapeOccludes(voxelShape, voxelShape2);
 	}
 
