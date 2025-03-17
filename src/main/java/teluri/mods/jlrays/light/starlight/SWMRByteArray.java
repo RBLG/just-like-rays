@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import org.joml.Math;
 
 import ca.spottedleaf.starlight.common.light.SWMRNibbleArray;
+import teluri.mods.jlrays.util.ToneMapperHelper;
 
 public class SWMRByteArray extends SWMRNibbleArray {
 
@@ -108,6 +109,13 @@ public class SWMRByteArray extends SWMRNibbleArray {
 	@Override
 	// operation type: visible
 	public int getVisible(final int index) {
+		if (this.storageVisible == null) {
+			return 0;
+		}
+		return (int) ToneMapperHelper.tonemap(getFullVisible(index), 15, 15);
+	}
+
+	public int getFullVisible(final int index) {
 		// indices range from 0 -> 4096
 		final byte[] visibleBytes = this.storageVisible;
 		if (visibleBytes == null) {
