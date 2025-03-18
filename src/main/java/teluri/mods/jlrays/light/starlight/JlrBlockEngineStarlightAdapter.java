@@ -1,33 +1,39 @@
 package teluri.mods.jlrays.light.starlight;
 
-import ca.spottedleaf.starlight.common.light.StarLightInterface;
+import java.util.Set;
+
+import ca.spottedleaf.starlight.common.light.BlockStarLightEngine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LightChunkGetter;
 import teluri.mods.jlrays.light.JlrBlockLightEngine;
 import teluri.mods.jlrays.light.JlrBlockLightEngine.ILightStorage;
 
-public class JlrBlockEngineStarlightAdapter implements ILightStorage {
+public class JlrBlockEngineStarlightAdapter extends BlockStarLightEngine implements ILightStorage {
 
 	protected final JlrBlockLightEngine engine;
-	protected final StarLightInterface slinter;
+	protected final Level level;
 
-	public JlrBlockEngineStarlightAdapter(StarLightInterface nslinter) {
-		slinter = nslinter;
-		engine = new JlrBlockLightEngine(null, null, null, null);
+	public JlrBlockEngineStarlightAdapter(Level nlevel) {
+		super(nlevel);
+		level = nlevel;
+		engine = new JlrBlockLightEngine(null, null, null, nlevel);
 	}
 
-	public void checkBlock(BlockPos blockpos) {
-		engine.checkBlock(blockpos);
-	}
+	@Override
+	protected void propagateBlockChanges(LightChunkGetter lightAccess, ChunkAccess atChunk, Set<BlockPos> positions) {
+		for (final BlockPos pos : positions) {
+			engine.checkBlock(pos);
+		}
 
-	public void runLightUpdates() {
 		engine.runLightUpdates();
 	}
 
 	@Override
 	public void setLevel(long pos, int value) {
-		// TODO Auto-generated method stub
-
+		//TODO cant with this architecture
 	}
 
 	@Override

@@ -6,14 +6,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import ca.spottedleaf.starlight.common.light.BlockStarLightEngine;
 import ca.spottedleaf.starlight.common.light.StarLightInterface;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.chunk.LightChunkGetter;
-import net.minecraft.world.level.lighting.LevelLightEngine;
 import teluri.mods.jlrays.light.starlight.JlrBlockEngineStarlightAdapter;
 
 /**
@@ -23,26 +17,15 @@ import teluri.mods.jlrays.light.starlight.JlrBlockEngineStarlightAdapter;
 @Mixin(StarLightInterface.class)
 public class StarLightInterfaceMixin {
 	@Shadow
-	protected ArrayDeque<BlockStarLightEngine> cachedBlockPropagators;
+	protected final ArrayDeque<BlockStarLightEngine> cachedBlockPropagators;
 
-	JlrBlockEngineStarlightAdapter engine;
-
-	@Inject(method = "blockChange*", at = { @At(value = "HEAD") })
-	public void blockChange(final BlockPos blockpos, CallbackInfoReturnable<StarLightInterface.LightQueue> info) {
-		this.engine.checkBlock(blockpos);
+	@Inject(method = "getBlockLightEngine", at = { @At(value = "NEW") })
+	protected BlockStarLightEngine newEngine() {
+		return new JlrBlockEngineStarlightAdapter(null);
 	}
 
-	@Inject(method = "propagateChanges()V", at = { @At(value = "HEAD") })
-	public void propagateChanges() {
-		this.engine.runLightUpdates();
-	}
-
-	@Inject(method = "<init>*", at = { @At(value = "RETURN") })
-	public void init(LightChunkGetter lightAccess, boolean hasSkyLight, boolean hasBlockLight,
-			LevelLightEngine lightEngine, CallbackInfo info) {
-
-		this.cachedBlockPropagators = null;
+	public StarLightInterfaceMixin() {
+		this.cachedBlockPropagators = new ArrayDeque<BlockStarLightEngine>();
 
 	}
-
 }
