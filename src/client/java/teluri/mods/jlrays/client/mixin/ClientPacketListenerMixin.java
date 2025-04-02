@@ -12,7 +12,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LevelLightEngine;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.main.light.ByteDataLayer;
 
 /**
  * @author RBLG

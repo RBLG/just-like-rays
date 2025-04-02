@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.light;
+package teluri.mods.jlrays.main.light;
 
 import java.util.function.BiConsumer;
 
@@ -12,9 +12,10 @@ import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.light.JlrBlockLightEngine.ILightStorage;
+import teluri.mods.jlrays.misc.light.ILightStorage;
 
 /**
+ * allow to abstract away mc light engine logic from the Jlr engine
  * @author RBLG
  * @since v0.0.7
  */
@@ -29,7 +30,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 
-		engine = new JlrBlockLightEngine(this::findBlockLightSources, this::getState, this);
+		engine = new JlrBlockLightEngine(this::getState, this);
 	}
 
 	@Override
@@ -61,6 +62,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		super.queueSectionData(sectionPos, data);
 	}
 
+	@Override
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
 		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
 		if (lightChunk != null) {

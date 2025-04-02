@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.light;
+package teluri.mods.jlrays.main.light;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;

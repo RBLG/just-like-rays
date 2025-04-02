@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.boilerplate;
+package teluri.mods.jlrays.misc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;

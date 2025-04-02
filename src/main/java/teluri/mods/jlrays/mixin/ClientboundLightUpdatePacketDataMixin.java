@@ -9,7 +9,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.main.light.ByteDataLayer;
 
 /**
  * @author RBLG

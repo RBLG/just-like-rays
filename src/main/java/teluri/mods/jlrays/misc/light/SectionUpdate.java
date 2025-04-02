@@ -1,7 +1,12 @@
-package teluri.mods.jlrays.light;
+package teluri.mods.jlrays.misc.light;
 
 import net.minecraft.core.BlockPos;
 
+/**
+ * bounds of a volume that contains one or more block updates located in the same section
+ * @author RBLG
+ * @since v0.0.7
+ */
 public class SectionUpdate {
 	public int x1, y1, z1, x2, y2, z2;
 

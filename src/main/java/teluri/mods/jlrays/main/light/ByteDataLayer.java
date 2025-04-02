@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.light;
+package teluri.mods.jlrays.main.light;
 
 import java.util.Arrays;
 

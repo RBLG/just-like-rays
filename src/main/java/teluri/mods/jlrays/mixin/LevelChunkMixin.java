@@ -21,7 +21,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.blending.BlendingData;
 import net.minecraft.world.level.lighting.LevelLightEngine;
-import teluri.mods.jlrays.boilerplate.ShinyBlockPos;
+import teluri.mods.jlrays.misc.ShinyBlockPos;
 
 /**
  * @author RBLG

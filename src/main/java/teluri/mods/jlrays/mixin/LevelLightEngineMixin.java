@@ -11,7 +11,7 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.lighting.LightEventListener;
-import teluri.mods.jlrays.light.JlrBlockLightEngineAdapter;
+import teluri.mods.jlrays.main.light.JlrBlockLightEngineAdapter;
 
 @Mixin(LevelLightEngine.class)
 public abstract class LevelLightEngineMixin implements LightEventListener {
