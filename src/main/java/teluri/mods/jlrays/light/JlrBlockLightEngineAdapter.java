@@ -70,17 +70,23 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		}
 	}
 
-	@Deprecated
+	@Deprecated(since = "v0.0.1")
 	@Override
-	protected void checkNode(long packedPos) {}
+	protected void checkNode(long packedPos) {
+		// disabling vanilla light engine behavior
+	}
 
-	@Deprecated
+	@Deprecated(since = "v0.0.1")
 	@Override
-	protected void propagateIncrease(long packedPos, long queueEntry, int lightLevel) {}
+	protected void propagateIncrease(long packedPos, long queueEntry, int lightLevel) {
+		// disabling vanilla light engine behavior
+	}
 
-	@Deprecated
+	@Deprecated(since = "v0.0.1")
 	@Override
-	protected void propagateDecrease(long packedPos, long lightLevel) {}
+	protected void propagateDecrease(long packedPos, long lightLevel) {
+		// disabling vanilla light engine behavior
+	}
 
 	@Override
 	public void setLevel(long pos, int value) {
@@ -108,8 +114,4 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		storage.swapSectionMap();
 	}
 
-	@Override
-	public void setLightEnabled(ChunkPos chunkPos, boolean enabled) {
-		super.setLightEnabled(chunkPos, enabled);
-	}
 }

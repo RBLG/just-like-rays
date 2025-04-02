@@ -155,7 +155,7 @@ public class JlrBlockLightEngine {
 			if (sourceemit != 0) {
 				// check is done as squared to avoid square roots
 				float sourcerange = getRangeSquared(sourceemit);
-				double dist = source.distanceSquared(pos);//TODO? * DISTANCE_RATIO;
+				double dist = source.distanceSquared(pos);// TODO? * DISTANCE_RATIO;
 				if (dist < sourcerange) {
 					sourceChangeMap.putIfAbsent(mutpos0.asLong(), blockState);
 				}
@@ -202,8 +202,7 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		// int oldopacity = getAlpha(oldbs);
-		// int newopacity = getAlpha(newbs);
+
 		if (oldemit != newemit) {
 			updateLight(source, source, 1, 1, oldemit, newemit);
 		}
@@ -227,7 +226,7 @@ public class JlrBlockLightEngine {
 			if (oldemit != newemit) {
 				NaiveFbGbvSightEngine.traceAllQuadrants2(source, range, oaprov, naprov, consu);
 			} else {
-				IPositionIterator buiter = (step) -> iterateOverUpdateList(step, inrangepos, size);
+				IPositionIterator buiter = step -> iterateOverUpdateList(step, inrangepos, size);
 				NaiveFbGbvSightEngine.traceAllChangedQuadrants2(source, newemit, buiter, oaprov, naprov, consu);
 			}
 		}
@@ -268,11 +267,11 @@ public class JlrBlockLightEngine {
 		return switch (size) {
 		default/*             */ -> this::getOldStateWhenMany;
 		case 0 /*             */ -> this::getState;
-		case 2, 3, 4, 5, 6, 7, 8 -> (pos) -> getOldStateWhenSome(pos, oldbss, targets, size);
+		case 2, 3, 4, 5, 6, 7, 8 -> pos -> getOldStateWhenSome(pos, oldbss, targets, size);
 		case 1 /*             */ -> {
 			long target = targets[0];
 			BlockState bs = oldbss[0];
-			yield (pos) -> getOldStateWhen1(pos, bs, target);
+			yield pos -> getOldStateWhen1(pos, bs, target);
 		}
 		};
 	}

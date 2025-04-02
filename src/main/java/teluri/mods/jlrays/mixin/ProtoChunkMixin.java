@@ -34,7 +34,7 @@ public abstract class ProtoChunkMixin extends ChunkAccess {
 	@WrapOperation(method = "setBlockState*", //
 			at = @At(value = "INVOKE", //
 					target = "net/minecraft/world/level/lighting/LevelLightEngine.checkBlock(Lnet/minecraft/core/BlockPos;)V"))
-	public void HijackRemoveCheckNode(LevelLightEngine instance, BlockPos pos, Operation<Void> original, @Local(ordinal = 1) BlockState blockState,
+	public void hijackRemoveCheckNode(LevelLightEngine instance, BlockPos pos, Operation<Void> original, @Local(ordinal = 1) BlockState blockState,
 			@Local(ordinal = 0) BlockState state) {
 		original.call(instance, new ShinyBlockPos(pos, blockState, state)); // removed and replaced in the other mixin
 	}
@@ -43,7 +43,7 @@ public abstract class ProtoChunkMixin extends ChunkAccess {
 	/**
 	 * fake constructor to satisfy java compiler
 	 */
-	public ProtoChunkMixin(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry<Biome> biomeRegistry, long inhabitedTime,
+	protected ProtoChunkMixin(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry<Biome> biomeRegistry, long inhabitedTime,
 			LevelChunkSection[] sections, BlendingData blendingData) {
 		super(chunkPos, upgradeData, levelHeightAccessor, biomeRegistry, inhabitedTime, sections, blendingData);
 	}
