@@ -11,10 +11,8 @@ import teluri.mods.jlrays.util.IPositionIterator;
 import static java.lang.Math.*;
 
 /**
- * naive implementation of the Face Based GBV algorithm, which is an evolution
- * of GBV that attribute a value per face, instead of per voxel. <br>
- * this come with the precision of 18 neigbors 3d GBV but without the leaks that
- * happen with anything further than 6neigbors. <br>
+ * naive implementation of the Face Based GBV algorithm, which is an evolution of GBV that attribute a value per face, instead of per voxel. <br>
+ * this come with the precision of 18 neigbors 3d GBV but without the leaks that happen with anything further than 6neigbors. <br>
  * it drawback is having to interpolate for 3 values instead of 1
  * 
  * @author RBLG
@@ -58,17 +56,14 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	/**
-	 * check if a quadrant should draw blocks when on an edge shared with another
-	 * quadrant
+	 * check if a quadrant should draw blocks when on an edge shared with another quadrant
 	 */
 	public static boolean isNotDuplicatedEdge(Quadrant quadr, int itr1, int itr2, int itr3) {
-		return (itr1 != 0 || 0 <= quadr.axis1.x) && (itr2 != 0 || 0 <= quadr.axis2.y)
-				&& (itr3 != 0 || 0 <= quadr.axis3.z);
+		return (itr1 != 0 || 0 <= quadr.axis1.x) && (itr2 != 0 || 0 <= quadr.axis2.y) && (itr3 != 0 || 0 <= quadr.axis3.z);
 	}
 
 	/**
-	 * get the visibility value for the block based on the visibility values of the
-	 * faces and their weights
+	 * get the visibility value for the block based on the visibility values of the faces and their weights
 	 */
 	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
 		// innacurate but diagonal walls dont cast shadows on themselves
@@ -92,22 +87,18 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	/**
-	 * scout the visible area around a position to see if there is a visible light
-	 * source
+	 * scout the visible area around a position to see if there is a visible light source
 	 */
-	public static void scoutAllQuadrants(Vector3i pos, int range, IAlphaProvider oaprov, IAlphaProvider naprov,
-			ISightUpdateConsumer sucons) {
+	public static void scoutAllQuadrants(Vector3i pos, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceChangedQuadrant(pos, range, quadrant, oaprov, naprov, sucons, true);
 		}
 	}
 
 	/**
-	 * scoute the visible area around a position when there is no block updates in
-	 * range
+	 * scoute the visible area around a position when there is no block updates in range
 	 */
-	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov,
-			ISightUpdateConsumer scons) {
+	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceQuadrant(source, range, quadrant, aprov, scons, true);
 		}
@@ -116,8 +107,7 @@ public class NaiveFbGbvSightEngine {
 	/**
 	 * update quadrants impacted by a single block update (unused)
 	 */
-	public static void traceAllChangedQuadrants(Vector3i source, Vector3i target, int range, IAlphaProvider oaprov,
-			IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+	public static void traceAllChangedQuadrants(Vector3i source, Vector3i target, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		Vector3i vtmp = new Vector3i();
 		for (Quadrant quadrant : QUADRANTS) {
 			int comp1 = sum(vtmp.set(target).sub(source).mul(quadrant.axis1));
@@ -132,19 +122,16 @@ public class NaiveFbGbvSightEngine {
 	/**
 	 * update the entire area around a source while handling block updates in range
 	 */
-	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov,
-			ISightUpdateConsumer sucons) {
+	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		for (Quadrant quadrant : QUADRANTS) {
 			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
 		}
 	}
 
 	/**
-	 * update the quadrants around a source that are impacted by at least one block
-	 * update
+	 * update the quadrants around a source that are impacted by at least one block update
 	 */
-	public static void traceAllChangedQuadrants2(Vector3i source, int range, IPositionIterator iter,
-			IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
+	public static void traceAllChangedQuadrants2(Vector3i source, int range, IPositionIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons) {
 		Vector3i vtmp = new Vector3i();
 		// check if there's a block update in a quadrant and if so, update the quadrant
 		for (Quadrant quadrant : QUADRANTS) {
@@ -170,8 +157,7 @@ public class NaiveFbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov,
-			ISightUpdateConsumer scons, boolean scout) {
+	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
@@ -257,8 +243,7 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	/**
-	 * run the FBGBV algorithm over a quadrant while tracking the visibility before
-	 * and after a block update<br>
+	 * run the FBGBV algorithm over a quadrant while tracking the visibility before and after a block update<br>
 	 * refer to traceQuadrant(..) for more in depth comments
 	 * 
 	 * @param origin position of the source of the light
@@ -268,8 +253,7 @@ public class NaiveFbGbvSightEngine {
 	 * @param naprov new visibility provider
 	 * @param sucons sight consumer
 	 */
-	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov,
-			IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout) {
+	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
@@ -332,12 +316,9 @@ public class NaiveFbGbvSightEngine {
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							sucons.consume(xyz, 1, 1);
-						} else if ((oahol.block != 0 || nahol.block != 0)
-								&& (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
-							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3)
-									* oahol.block;
-							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3)
-									* nahol.block;
+						} else if ((oahol.block != 0 || nahol.block != 0) && (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
+							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
+							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}

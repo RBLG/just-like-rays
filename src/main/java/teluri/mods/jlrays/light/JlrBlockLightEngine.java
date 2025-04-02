@@ -39,9 +39,9 @@ public class JlrBlockLightEngine {
 	public static final int MAX_RANGE = getRange(15); // range of the highest value emissive source possible. define how far to search for sources
 
 	// map of all the changes to process with the previous blockstate associated
-	protected final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<BlockState>();
-	protected final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<BlockState>();
-	protected final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<SectionUpdate>();
+	protected final Long2ObjectOpenHashMap<BlockState> changeMap = new Long2ObjectOpenHashMap<>();
+	protected final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<>();
+	protected final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<>();
 
 	protected final IBlockStateProvider blockStateProvider;
 	protected final ILightStorage lightStorage;
