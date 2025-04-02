@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.misc.light;
+package teluri.mods.jlrays.light.misc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;

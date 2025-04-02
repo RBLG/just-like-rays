@@ -1,11 +1,11 @@
-package teluri.mods.jlrays.main.sight;
+package teluri.mods.jlrays.light.sight;
 
 import org.joml.Vector3i;
 
-import teluri.mods.jlrays.misc.sight.AlphaHolder;
-import teluri.mods.jlrays.misc.sight.ISightUpdateConsumer;
-import teluri.mods.jlrays.misc.sight.Quadrant;
-import teluri.mods.jlrays.misc.sight.AlphaHolder.IAlphaProvider;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
+import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
+import teluri.mods.jlrays.light.sight.misc.Quadrant;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.util.IPositionIterator;
 
 import static java.lang.Math.*;

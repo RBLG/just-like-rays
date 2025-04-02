@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.misc.light;
+package teluri.mods.jlrays.light.misc;
 
 import java.util.function.BiConsumer;
 

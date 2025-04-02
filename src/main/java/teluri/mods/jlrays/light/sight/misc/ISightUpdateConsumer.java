@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.misc.sight;
+package teluri.mods.jlrays.light.sight.misc;
 
 import org.joml.Vector3i;
 

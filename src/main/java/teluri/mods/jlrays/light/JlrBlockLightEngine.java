@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.main.light;
+package teluri.mods.jlrays.light;
 
 import org.joml.Vector3i;
 
@@ -14,15 +14,15 @@ import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.main.sight.NaiveFbGbvSightEngine;
+import teluri.mods.jlrays.light.misc.IBlockStateProvider;
+import teluri.mods.jlrays.light.misc.ILightStorage;
+import teluri.mods.jlrays.light.misc.SectionUpdate;
+import teluri.mods.jlrays.light.sight.NaiveFbGbvSightEngine;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
+import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
+import teluri.mods.jlrays.light.sight.misc.Quadrant;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
-import teluri.mods.jlrays.misc.light.IBlockStateProvider;
-import teluri.mods.jlrays.misc.light.ILightStorage;
-import teluri.mods.jlrays.misc.light.SectionUpdate;
-import teluri.mods.jlrays.misc.sight.AlphaHolder;
-import teluri.mods.jlrays.misc.sight.ISightUpdateConsumer;
-import teluri.mods.jlrays.misc.sight.Quadrant;
-import teluri.mods.jlrays.misc.sight.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.util.IPositionIterator;
 import teluri.mods.jlrays.util.IPositionIterator.IPositionIteratorStep;
 

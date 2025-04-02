@@ -1,4 +1,4 @@
-package teluri.mods.jlrays.main.light;
+package teluri.mods.jlrays.light;
 
 import java.util.function.BiConsumer;
 
@@ -12,7 +12,7 @@ import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.misc.light.ILightStorage;
+import teluri.mods.jlrays.light.misc.ILightStorage;
 
 /**
  * allow to abstract away mc light engine logic from the Jlr engine
