@@ -3,7 +3,8 @@
 	"package": "teluri.mods.jlrays.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ClientPacketListenerMixin"
+		"ClientPacketListenerMixin",
+		"RenderChunkMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,11 +1,13 @@
 package teluri.mods.jlrays.light;
 
 import java.util.function.BiConsumer;
-
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LightChunk;
@@ -13,15 +15,20 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.misc.ILightStorage;
+import teluri.mods.jlrays.light.misc.TaskCache;
+import teluri.mods.jlrays.misc.ICoolerBlockGetter;
 
 /**
  * allow to abstract away mc light engine logic from the Jlr engine
+ * 
  * @author RBLG
  * @since v0.0.7
  */
 public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStorage.JlrDataLayerStorageMap, JlrLightSectionStorage> implements ILightStorage {
 
 	protected final JlrBlockLightEngine engine;
+
+	protected ThreadLocal<MutableBlockPos> threadLocalMutPos = ThreadLocal.withInitial(() -> new MutableBlockPos());
 
 	public JlrBlockLightEngineAdapter(LightChunkGetter chunkSource) {
 		this(chunkSource, new JlrLightSectionStorage(chunkSource));
@@ -30,7 +37,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	protected JlrBlockLightEngineAdapter(LightChunkGetter chunkSource, JlrLightSectionStorage storage) {
 		super(chunkSource, storage);
 
-		engine = new JlrBlockLightEngine(this::getState, this);
+		engine = new JlrBlockLightEngine(this::getState, this::createTask, this);
 	}
 
 	@Override
@@ -112,6 +119,30 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	public void onLightUpdateCompleted() {
 		storage.markNewInconsistencies(this);
 		storage.swapSectionMap();
+	}
+
+	@Deprecated(since = "v0.0.7")
+	@Override
+	public BlockState getState(BlockPos pos) {
+		return super.getState(pos);
+	}
+
+	public BlockState getState(int x, int y, int z) {
+		int sx = SectionPos.blockToSectionCoord(x);
+		int sz = SectionPos.blockToSectionCoord(z);
+		LightChunk lightChunk = this.getChunk(sx, sz);
+		if (lightChunk == null) {
+			return Blocks.BEDROCK.defaultBlockState();
+		} else if (lightChunk instanceof ICoolerBlockGetter) {
+			return ((ICoolerBlockGetter) lightChunk).getBlockState(x, y, z);
+		} else {
+			JustLikeRays.LOGGER.info("lightChunk was: " + lightChunk.getClass());
+			return lightChunk.getBlockState(this.threadLocalMutPos.get().set(x, y, z));
+		}
+	}
+
+	public TaskCache createTask(int nax, int nay, int naz, int nbx, int nby, int nbz) {
+		return new TaskCache(nax, nay, naz, nbx, nby, nbz, chunkSource);
 	}
 
 }

@@ -5,7 +5,6 @@ import org.joml.Vector3i;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
@@ -17,13 +16,14 @@ import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.misc.IBlockStateProvider;
 import teluri.mods.jlrays.light.misc.ILightStorage;
 import teluri.mods.jlrays.light.misc.SectionUpdate;
+import teluri.mods.jlrays.light.misc.TaskCache;
+import teluri.mods.jlrays.light.misc.TaskCache.ITaskCacheFactory;
 import teluri.mods.jlrays.light.sight.NaiveFbGbvSightEngine;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
-import teluri.mods.jlrays.util.IPositionIterator;
 import teluri.mods.jlrays.util.IPositionIterator.IPositionIteratorStep;
 
 /**
@@ -43,11 +43,13 @@ public class JlrBlockLightEngine {
 	protected final Long2ObjectOpenHashMap<BlockState> sourceChangeMap = new Long2ObjectOpenHashMap<>();
 	protected final Long2ObjectOpenHashMap<SectionUpdate> sectionChangeMap = new Long2ObjectOpenHashMap<>();
 
+	protected final ITaskCacheFactory taskCacheFactory;
 	protected final IBlockStateProvider blockStateProvider;
 	protected final ILightStorage lightStorage;
 
-	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ILightStorage nLightStorage) {
+	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
+		taskCacheFactory = ntaskCacheFactory;
 		blockStateProvider = nBSProvider;
 		lightStorage = nLightStorage;
 	}
@@ -90,7 +92,15 @@ public class JlrBlockLightEngine {
 		return !changeMap.isEmpty();
 	}
 
-	public BlockState getState(BlockPos pos) {
+	public BlockState getState(int x, int y, int z) {
+		return this.blockStateProvider.getState(x, y, z);
+	}
+
+	public BlockState getState(Vector3i pos) {
+		return this.blockStateProvider.get(pos);
+	}
+
+	public BlockState getState(long pos) {
 		return this.blockStateProvider.get(pos);
 	}
 
@@ -98,7 +108,7 @@ public class JlrBlockLightEngine {
 	 * applies all updates in the queue
 	 */
 	public void runLightUpdates() {
-		MutableBlockPos mbptmp = new MutableBlockPos();
+		// MutableBlockPos mbptmp = new MutableBlockPos();
 		Vector3i vtmp = new Vector3i();
 
 		// scout the area around block updates to find light sources that need to be updated
@@ -112,16 +122,14 @@ public class JlrBlockLightEngine {
 		});
 		// updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
-			mbptmp.set(longpos);
-			BlockState curr = getState(mbptmp);
-			vtmp.set(mbptmp.getX(), mbptmp.getY(), mbptmp.getZ());
+			BlockState curr = getState(longpos);
+			vtmp.set(BlockPos.getX(longpos), BlockPos.getY(longpos), BlockPos.getZ(longpos));
 			updateImpactedSource(vtmp, prev, curr);
 
 		});
 		// as a security, set all newly opaque blocks' light to 0
 		changeMap.forEach((longpos, prev) -> {
-			mbptmp.set(longpos);
-			BlockState curr = getState(mbptmp);
+			BlockState curr = getState(longpos);
 			if (getAlpha(curr) == 0 && curr.getLightEmission() == 0) {
 				lightStorage.setLevel(longpos, 0);
 			}
@@ -147,30 +155,40 @@ public class JlrBlockLightEngine {
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
 		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
 
-		MutableBlockPos mutpos0 = new MutableBlockPos();
-		ISightUpdateConsumer scons = (source, unused1, unused2) -> {
-			mutpos0.set(source.x, source.y, source.z);
-			BlockState blockState = this.getState(mutpos0);
-			int sourceemit = blockState.getLightEmission();
-			if (sourceemit != 0) {
-				// check is done as squared to avoid square roots
-				float sourcerange = getRangeSquared(sourceemit);
-				double dist = source.distanceSquared(pos);// TODO? * DISTANCE_RATIO;
-				if (dist < sourcerange) {
-					sourceChangeMap.putIfAbsent(mutpos0.asLong(), blockState);
-				}
-			}
-			// no need to check for lightsources in previous blockStates, as they would already be in sourceChangemap
-		};
-		MutableBlockPos mutpos4 = new MutableBlockPos();
-		IAlphaProvider naprov = (xyz5, quadr, hol) -> getAlphases(xyz5, this::getState, quadr, hol, mutpos4);
+		// MutableBlockPos mutpos0 = new MutableBlockPos();
 
-		if (size == 0) {
-			NaiveFbGbvSightEngine.scoutAllQuadrantsUpdateless(pos, MAX_RANGE, naprov, scons);
-		} else {
-			IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
-			NaiveFbGbvSightEngine.scoutAllQuadrants(pos, MAX_RANGE, oaprov, naprov, scons);
-		}
+		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			TaskCache taskCache = taskCacheFactory.createWithQuadrant(pos, MAX_RANGE, quadrant);
+
+			ISightUpdateConsumer scons = (source, unused1, unused2) -> {
+				BlockState blockState = taskCache.get(source);
+				int sourceemit = blockState.getLightEmission();
+				if (sourceemit != 0) {
+					// check is done as squared to avoid square roots
+					float sourcerange = getRangeSquared(sourceemit);
+					double dist = source.distanceSquared(pos);
+					if (dist < sourcerange) {
+						sourceChangeMap.putIfAbsent(BlockPos.asLong(source.x, source.y, source.z), blockState);
+					}
+				}
+				// no need to check for lightsources in previous blockStates, as they would already be in sourceChangemap
+			};
+
+			IAlphaProvider naprov = (xyz5, quadr, hol) -> getAlphases(xyz5, taskCache::getState, quadr, hol);
+			if (size == 0) {
+				NaiveFbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
+			} else {
+				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
+				NaiveFbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
+			}
+		});
+
+		// if (size == 0) {
+		// NaiveFbGbvSightEngine.scoutAllQuadrantsUpdateless(pos, MAX_RANGE, naprov, scons, taskCacheFactory);
+		// } else {
+		// IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
+		// NaiveFbGbvSightEngine.scoutAllQuadrants(pos, MAX_RANGE, oaprov, naprov, scons, taskCacheFactory);
+		// }
 	}
 
 	/**
@@ -181,15 +199,15 @@ public class JlrBlockLightEngine {
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
 
-		MutableBlockPos mutpos0 = new MutableBlockPos();
+		// MutableBlockPos mutpos0 = new MutableBlockPos();
 		for (int itx = secupd.x1 - MAX_RANGE; itx < secupd.x2 + MAX_RANGE; itx++) {
 			for (int ity = secupd.y1 - MAX_RANGE; ity < secupd.y2 + MAX_RANGE; ity++) {
 				for (int itz = secupd.z1 - MAX_RANGE; itz < secupd.z2 + MAX_RANGE; itz++) {
-					mutpos0.set(itx, ity, itz);
-					BlockState blockState = this.getState(mutpos0);
+					// mutpos0.set(itx, ity, itz);
+					BlockState blockState = this.getState(itx, ity, itz);
 					int sourceemit = blockState.getLightEmission();
 					if (sourceemit != 0) {
-						sourceChangeMap.putIfAbsent(mutpos0.asLong(), blockState);
+						sourceChangeMap.putIfAbsent(BlockPos.asLong(itx, ity, itz), blockState);
 					}
 				}
 			}
@@ -212,24 +230,42 @@ public class JlrBlockLightEngine {
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
 		int size = filterBlockUpdatesByRange(source, inrangepos, inrangebs, range);
 
-		ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
-		MutableBlockPos mutpos = new MutableBlockPos();
-		IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, this::getState, quadr, hol, mutpos);
+		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			TaskCache taskCache = taskCacheFactory.createWithQuadrant(source, MAX_RANGE, quadrant);
+			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
+			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 
-		if (size == 0) {
-			if (oldemit != newemit) {
-				// if no updates are around, its always an emit change, unless it was a bad approximation
-				NaiveFbGbvSightEngine.traceAllQuadrants(source, range, naprov, consu);
-			}
-		} else {
-			IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
-			if (oldemit != newemit) {
-				NaiveFbGbvSightEngine.traceAllQuadrants2(source, range, oaprov, naprov, consu);
+			if (size == 0) {
+				if (oldemit != newemit) {
+					// if no updates are around, its always an emit change, unless it was a bad approximation
+
+					NaiveFbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
+				}
 			} else {
-				IPositionIterator buiter = step -> iterateOverUpdateList(step, inrangepos, size);
-				NaiveFbGbvSightEngine.traceAllChangedQuadrants2(source, newemit, buiter, oaprov, naprov, consu);
+				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
+				if (oldemit != newemit) {
+
+					NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+				} else {
+					Vector3i vtmp = new Vector3i();
+					for (int it = 0; it < size; it++) { // TODO re chop it into smaller functions
+						long target = inrangepos[it];
+						int x, y, z;
+						x = BlockPos.getX(target);
+						y = BlockPos.getY(target);
+						z = BlockPos.getZ(target);
+						int comp1 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
+						int comp2 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
+						int comp3 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
+						if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
+							NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+							break;
+						}
+					}
+
+				}
 			}
-		}
+		});
 	}
 
 	/**
@@ -254,24 +290,23 @@ public class JlrBlockLightEngine {
 	/**
 	 * return a provider adapted to the amount of block updates in range
 	 */
-	protected IAlphaProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size) {
-		MutableBlockPos mutpos = new MutableBlockPos();
-		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size);
-		return (xyz, quadr, hol) -> getAlphases(xyz, bsprov, quadr, hol, mutpos);
+	protected IAlphaProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
+		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size, taskCache);
+		return (xyz, quadr, hol) -> getAlphases(xyz, bsprov, quadr, hol);
 	}
 
 	/**
 	 * return the fastest blockstate provider based on the amount of block updates in range
 	 */
-	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size) {
+	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		return switch (size) {
-		default/*             */ -> this::getOldStateWhenMany;
-		case 0 /*             */ -> this::getState;
-		case 2, 3, 4, 5, 6, 7, 8 -> pos -> getOldStateWhenSome(pos, oldbss, targets, size);
+		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache);
+		case 0 /*             */ -> (x, y, z) -> taskCache.getState(x, y, z);
+		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, oldbss, targets, size, taskCache);
 		case 1 /*             */ -> {
 			long target = targets[0];
 			BlockState bs = oldbss[0];
-			yield pos -> getOldStateWhen1(pos, bs, target);
+			yield (x, y, z) -> getOldStateWhen1(x, y, z, bs, target, taskCache);
 		}
 		};
 	}
@@ -279,13 +314,14 @@ public class JlrBlockLightEngine {
 	/**
 	 * applies step to all positions in targets in size
 	 */
-	protected static void iterateOverUpdateList(IPositionIteratorStep step, long[] targets, int size) {
+	protected static boolean iterateOverUpdateList(long[] targets, int size, IPositionIteratorStep step) {
 		for (int it = 0; it < size; it++) {
 			long target = targets[it];
 			if (step.consume(BlockPos.getX(target), BlockPos.getY(target), BlockPos.getZ(target))) {
-				return;
+				return true;
 			}
 		}
+		return false;
 	}
 
 	/**
@@ -295,11 +331,15 @@ public class JlrBlockLightEngine {
 		lightStorage.setLightEnabled(chunkPos, true);
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int i = blockState.getLightEmission();
-			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i);
-			MutableBlockPos mutpos = new MutableBlockPos();
-			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, this::getState, quadr, hol, mutpos);
-			NaiveFbGbvSightEngine.traceAllQuadrants(vpos, getRange(i), naprov, consu); // if no updates are around, its always an emit change!
+			int range = getRange(i);
+			NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+				TaskCache taskCache = this.taskCacheFactory.createWithRange(blockPos.getX(), blockPos.getY(), blockPos.getZ(), MAX_RANGE);
+
+				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i);
+				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
+				NaiveFbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+			});
 		});
 	}
 
@@ -314,9 +354,8 @@ public class JlrBlockLightEngine {
 	/**
 	 * handle shape based occlusion
 	 */
-	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol, MutableBlockPos mutpos) {
-		mutpos.set(xyz.x, xyz.y, xyz.z);
-		BlockState state = bsprov.get(mutpos);
+	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
+		BlockState state = bsprov.get(xyz);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(state);
 		if (hol.block == 0 || isEmptyShape(state)) {
@@ -330,14 +369,14 @@ public class JlrBlockLightEngine {
 			Direction d6 = d3.getOpposite();
 
 			// previous
-			hol.f1 = getFaceAlpha(state, bsprov, d1, mutpos.set(xyz.x - quadr.axis1.x, xyz.y, xyz.z)) * hol.block;
-			hol.f2 = getFaceAlpha(state, bsprov, d2, mutpos.set(xyz.x, xyz.y - quadr.axis2.y, xyz.z)) * hol.block;
-			hol.f3 = getFaceAlpha(state, bsprov, d3, mutpos.set(xyz.x, xyz.y, xyz.z - quadr.axis3.z)) * hol.block;
+			hol.f1 = getFaceAlpha(state, bsprov, d1, xyz.x - quadr.axis1.x, xyz.y, xyz.z) * hol.block;
+			hol.f2 = getFaceAlpha(state, bsprov, d2, xyz.x, xyz.y - quadr.axis2.y, xyz.z) * hol.block;
+			hol.f3 = getFaceAlpha(state, bsprov, d3, xyz.x, xyz.y, xyz.z - quadr.axis3.z) * hol.block;
 
 			// next
-			hol.f4 = getFaceAlpha(state, bsprov, d4, mutpos.set(xyz.x + quadr.axis1.x, xyz.y, xyz.z)) * hol.block;
-			hol.f5 = getFaceAlpha(state, bsprov, d5, mutpos.set(xyz.x, xyz.y + quadr.axis2.y, xyz.z)) * hol.block;
-			hol.f6 = getFaceAlpha(state, bsprov, d6, mutpos.set(xyz.x, xyz.y, xyz.z + quadr.axis3.z)) * hol.block;
+			hol.f4 = getFaceAlpha(state, bsprov, d4, xyz.x + quadr.axis1.x, xyz.y, xyz.z) * hol.block;
+			hol.f5 = getFaceAlpha(state, bsprov, d5, xyz.x, xyz.y + quadr.axis2.y, xyz.z) * hol.block;
+			hol.f6 = getFaceAlpha(state, bsprov, d6, xyz.x, xyz.y, xyz.z + quadr.axis3.z) * hol.block;
 		}
 		return hol;
 	}
@@ -345,8 +384,8 @@ public class JlrBlockLightEngine {
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, BlockPos otherpos) {
-		BlockState otherstate = bsprov.get(otherpos);
+	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, int ox, int oy, int oz) {
+		BlockState otherstate = bsprov.getState(ox, oy, oz);
 		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
 
@@ -363,28 +402,28 @@ public class JlrBlockLightEngine {
 	/**
 	 * blockstate provider for when there's a single block updates in range
 	 */
-	public BlockState getOldStateWhen1(BlockPos pos, BlockState oldbs, long target) {
-		return target == pos.asLong() ? oldbs : getState(pos);
+	public BlockState getOldStateWhen1(int x, int y, int z, BlockState oldbs, long target, TaskCache taskCache) {
+		return target == BlockPos.asLong(x, y, z) ? oldbs : taskCache.getState(x, y, z);
 	}
 
 	/**
 	 * blockstate provider for when there's a small amount of block updates in range
 	 */
-	public BlockState getOldStateWhenSome(BlockPos pos, BlockState[] oldbss, long[] targets, int size) {
+	public BlockState getOldStateWhenSome(int x, int y, int z, BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		for (int iter = 0; iter < size; iter++) {
-			if (targets[iter] == pos.asLong()) {
+			if (targets[iter] == BlockPos.asLong(x, y, z)) {
 				return oldbss[iter];
 			}
 		}
-		return getState(pos);
+		return taskCache.getState(x, y, z);
 	}
 
 	/**
 	 * blockstate provider for when there's many block updates in range
 	 */
-	public BlockState getOldStateWhenMany(BlockPos pos) {
-		BlockState state = changeMap.get(pos.asLong());
-		return state != null ? state : getState(pos);
+	public BlockState getOldStateWhenMany(int x, int y, int z, TaskCache taskCache) {
+		BlockState state = changeMap.get(BlockPos.asLong(x, y, z));
+		return state != null ? state : taskCache.getState(x, y, z);
 	}
 
 	/**
