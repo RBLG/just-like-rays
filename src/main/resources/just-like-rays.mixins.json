@@ -8,8 +8,7 @@
 		"LevelChunkMixin",
 		"ChunkSerializerMixin",
 		"ClientboundLightUpdatePacketDataMixin",
-		"BlockStateBaseMixin",
-		"ImposterProtoChunkMixin"
+		"BlockStateBaseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

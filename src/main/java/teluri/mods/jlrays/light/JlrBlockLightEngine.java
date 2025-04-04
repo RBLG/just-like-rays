@@ -222,7 +222,8 @@ public class JlrBlockLightEngine {
 		int newemit = newbs.getLightEmission();
 
 		if (oldemit != newemit) {
-			updateLight(source, source, 1, 1, oldemit, newemit);
+			TaskCache pretaskCache = taskCacheFactory.createWithRange(source, 0);
+			updateLight(source, source, 1, 1, oldemit, newemit, pretaskCache);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
 
@@ -232,7 +233,7 @@ public class JlrBlockLightEngine {
 
 		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = taskCacheFactory.createWithQuadrant(source, MAX_RANGE, quadrant);
-			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit);
+			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 
 			if (size == 0) {
@@ -332,11 +333,13 @@ public class JlrBlockLightEngine {
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int i = blockState.getLightEmission();
 			int range = getRange(i);
+
+			TaskCache taskCacheAll = this.taskCacheFactory.createWithRange(blockPos, range);
 			NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
-				TaskCache taskCache = this.taskCacheFactory.createWithRange(blockPos.getX(), blockPos.getY(), blockPos.getZ(), MAX_RANGE);
+				TaskCache taskCache = new TaskCache(taskCacheAll);
 
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i);
+				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
 				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 				NaiveFbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
 			});
@@ -436,9 +439,10 @@ public class JlrBlockLightEngine {
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */
-	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		long longpos = BlockPos.asLong(xyz.x, xyz.y, xyz.z);
-		if (!this.lightStorage.storingLightForSection(SectionPos.blockToSection(longpos))) {
+	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
+		// long longpos = BlockPos.asLong(xyz.x, xyz.y, xyz.z);
+		ByteDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
+		if (data == null) {
 			return;
 		}
 		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
@@ -446,7 +450,8 @@ public class JlrBlockLightEngine {
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
 
-		this.lightStorage.addLevel(longpos, -oival + nival);
+		data.absoluteAdd(xyz.x, xyz.y, xyz.z, -oival + nival);
+		//this.lightStorage.noticeUpdate(xyz.x, xyz.y, xyz.z);
 	}
 
 	/**

@@ -16,7 +16,6 @@ import net.minecraft.world.level.lighting.LightEngine;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.misc.ILightStorage;
 import teluri.mods.jlrays.light.misc.TaskCache;
-import teluri.mods.jlrays.misc.ICoolerBlockGetter;
 
 /**
  * allow to abstract away mc light engine logic from the Jlr engine
@@ -121,28 +120,31 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		storage.swapSectionMap();
 	}
 
-	@Deprecated(since = "v0.0.7")
-	@Override
-	public BlockState getState(BlockPos pos) {
-		return super.getState(pos);
+	public ByteDataLayer getDataLayer(int x, int y, int z) {
+		return storage.getDataLayerForCaching(x, y, z);
 	}
 
 	public BlockState getState(int x, int y, int z) {
 		int sx = SectionPos.blockToSectionCoord(x);
 		int sz = SectionPos.blockToSectionCoord(z);
 		LightChunk lightChunk = this.getChunk(sx, sz);
-		if (lightChunk == null) {
-			return Blocks.BEDROCK.defaultBlockState();
-		} else if (lightChunk instanceof ICoolerBlockGetter) {
-			return ((ICoolerBlockGetter) lightChunk).getBlockState(x, y, z);
-		} else {
-			JustLikeRays.LOGGER.info("lightChunk was: " + lightChunk.getClass());
-			return lightChunk.getBlockState(this.threadLocalMutPos.get().set(x, y, z));
-		}
+		return (lightChunk == null) ? Blocks.BEDROCK.defaultBlockState() : lightChunk.getBlockState(this.threadLocalMutPos.get().set(x, y, z));
+
 	}
 
 	public TaskCache createTask(int nax, int nay, int naz, int nbx, int nby, int nbz) {
-		return new TaskCache(nax, nay, naz, nbx, nby, nbz, chunkSource);
+		return new TaskCache(nax, nay, naz, nbx, nby, nbz, chunkSource, storage);
+	}
+
+	@Override
+	@Nullable
+	protected LightChunk getChunk(int x, int z) { // make it stateless
+		return this.chunkSource.getChunkForLighting(x, z);
+	}
+
+	@Override
+	public void noticeUpdate(int x, int y, int z) {
+		this.storage.notifyUpdate(x, y, z);
 	}
 
 }

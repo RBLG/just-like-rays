@@ -1,6 +1,9 @@
 package teluri.mods.jlrays.light;
 
+import org.jetbrains.annotations.Nullable;
+
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LightLayer;
@@ -18,7 +21,7 @@ import teluri.mods.jlrays.JustLikeRays;
  */
 public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSectionStorage.JlrDataLayerStorageMap> {
 	protected JlrLightSectionStorage(LightChunkGetter chunkSource) {
-		super(LightLayer.BLOCK, chunkSource, new JlrLightSectionStorage.JlrDataLayerStorageMap(new Long2ObjectOpenHashMap<>()));
+		super(LightLayer.BLOCK, chunkSource, new JlrDataLayerStorageMap(new Long2ObjectOpenHashMap<>()));
 	}
 
 	@Override
@@ -56,10 +59,25 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (dataLayer instanceof ByteDataLayer) {
 			((ByteDataLayer) dataLayer).add(x, y, z, lightLevel);
 		} else {
-			JustLikeRays.LOGGER.warn("could not do a proper add in DataLayer because it wasnt a ByteSizeLayer");
+			JustLikeRays.LOGGER.warn("could not do a proper add in DataLayer because it wasnt byte sized");
 			dataLayer.set(x, y, z, dataLayer.get(x, y, z) + lightLevel);
 		}
 		SectionPos.aroundAndAtBlockPos(levelPos, this.sectionsAffectedByLightUpdates::add);
+	}
+
+	public synchronized void notifyUpdate(int x, int y, int z) { //TODO remove synchronized perf hog
+		SectionPos.aroundAndAtBlockPos(x, y, z, this.sectionsAffectedByLightUpdates::add);
+	}
+
+	public synchronized void notifySectionUpdate(int x, int y, int z) {
+		LongConsumer consumer = this.sectionsAffectedByLightUpdates::add;
+		for (int itx = (x - 1); itx <= (x + 1); itx++) {
+			for (int ity = (y - 1); ity <= (y + 1); ity++) {
+				for (int itz = (z - 1); itz <= (z + 1); itz++) {
+					consumer.accept(SectionPos.asLong(itx, ity, itz));
+				}
+			}
+		}
 	}
 
 	public int getFullStoredLevel(long levelPos) {
@@ -73,23 +91,33 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (dataLayer instanceof ByteDataLayer) {
 			return ((ByteDataLayer) dataLayer).getFull(x, y, z);
 		} else {
-			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt a ByteSizeLayer");
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt byte sized");
 			return dataLayer.get(x, y, z);
 		}
 	}
 
-	public static final class JlrDataLayerStorageMap extends DataLayerStorageMap<JlrLightSectionStorage.JlrDataLayerStorageMap> {
-		public JlrDataLayerStorageMap(Long2ObjectOpenHashMap<DataLayer> long2ObjectOpenHashMap) {
-			super(long2ObjectOpenHashMap);
+	public ByteDataLayer getDataLayerForCaching(int x, int y, int z) {
+		long l = SectionPos.asLong(x, y, z);
+		if (!this.storingLightForSection(l)) {
+			return null;
 		}
-
-		public JlrLightSectionStorage.JlrDataLayerStorageMap copy() {
-			return new JlrLightSectionStorage.JlrDataLayerStorageMap(this.map.clone());
+		DataLayer dataLayer;
+		if (this.changedSections.add(l)) {
+			dataLayer = this.updatingSectionData.copyDataLayer(l);
+		} else {
+			dataLayer = this.getDataLayer(l, true);
+		}
+		if (dataLayer instanceof ByteDataLayer) {
+			return (ByteDataLayer) dataLayer;
+		} else {
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getDataLayerForCaching wasnt byte sized");
+			return null;
 		}
 	}
 
 	/**
 	 * check that a dataLayer at a position is a ByteDataLayer
+	 * 
 	 * @param blockPos
 	 */
 	public void assertValidity(long blockPos) {
@@ -107,6 +135,22 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		}
 		if (!(layer instanceof ByteDataLayer)) {
 			JustLikeRays.LOGGER.error("cached datalayer isnt byte sized during validity check");
+		}
+	}
+
+	public static final class JlrDataLayerStorageMap extends DataLayerStorageMap<JlrDataLayerStorageMap> {
+		public JlrDataLayerStorageMap(Long2ObjectOpenHashMap<DataLayer> long2ObjectOpenHashMap) {
+			super(long2ObjectOpenHashMap);
+		}
+
+		public JlrLightSectionStorage.JlrDataLayerStorageMap copy() {
+			return new JlrLightSectionStorage.JlrDataLayerStorageMap(this.map.clone());
+		}
+
+		@Override
+		@Nullable
+		public DataLayer getLayer(long sectionPos) { // make getLayer stateless
+			return this.map.get(sectionPos);
 		}
 	}
 }

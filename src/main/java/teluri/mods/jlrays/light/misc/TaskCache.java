@@ -1,10 +1,13 @@
 package teluri.mods.jlrays.light.misc;
 
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
+import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.light.JlrLightSectionStorage;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import static java.lang.Math.*;
 
@@ -17,17 +20,19 @@ import org.joml.Vector3i;
  * @since v0.0.7
  */
 public class TaskCache implements IBlockStateProvider {
-	final int ax, ay, az, bx, by, bz; // bounds
+	protected final int ax, ay, az, bx, by, bz; // bounds
 
-	protected final int sax, saz;
-	protected final int lenx;
+	protected final int sax, say, saz;
+	protected final int lenx, leny, lenz;
 
 	protected final MutableBlockPos mutpos = new MutableBlockPos();
-	protected final LightChunkGetter LcGetter;
+	protected final LightChunkGetter chunkGetter;
+	protected final JlrLightSectionStorage lightStorage;
 
-	protected LightChunk[] cache;
+	protected final LightChunk[][] chunkCache;
+	protected final ByteDataLayer[][][] lightCache;
 
-	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter ngetter) {
+	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
 		// int ax, ay, az, bx, by, bz;
 		ax = nax;
 		ay = nay;
@@ -35,36 +40,77 @@ public class TaskCache implements IBlockStateProvider {
 		bx = nbx;
 		by = nby;
 		bz = nbz;
-		LcGetter = ngetter;
+		chunkGetter = nchunkgetter;
+		lightStorage = nlightstorage;
 
-		int sbx, sbz;
+		int sbx, sby, sbz;
 		sax = SectionPos.blockToSectionCoord(ax);
+		say = SectionPos.blockToSectionCoord(ay);
 		saz = SectionPos.blockToSectionCoord(az);
 		sbx = SectionPos.blockToSectionCoord(bx);
+		sby = SectionPos.blockToSectionCoord(by);
 		sbz = SectionPos.blockToSectionCoord(bz);
 
-		int lenz;
 		lenx = sbx - sax + 1;
+		leny = sby - say + 1;
 		lenz = sbz - saz + 1;
 
-		int len = lenx * lenz;
-
-		cache = new LightChunk[len];
+		chunkCache = new LightChunk[lenx][lenz];
+		lightCache = new ByteDataLayer[lenx][leny][lenz];
 		for (int itx = sax; itx <= sbx; itx++) {
 			for (int itz = saz; itz <= sbz; itz++) {
-				cache[(itx - sax) + (itz - saz) * lenx] = LcGetter.getChunkForLighting(itx, itz);
+				chunkCache[itx - sax][itz - saz] = chunkGetter.getChunkForLighting(itx, itz);
+				for (int ity = say; ity <= sby; ity++) {
+					lightCache[itx - sax][ity - say][itz - saz] = lightStorage.getDataLayerForCaching(itx, ity, itz);
+					lightStorage.notifySectionUpdate(itx, ity, itz);
+					// TODO? lightStorage.notifySectionUpdate(itx, ity, itz);
+				}
 			}
 		}
 	}
 
-	public BlockState getState(int x, int y, int z) {
-		return getLightChunk(x, y, z).getBlockState(mutpos.set(x, y, z));
+	public TaskCache(TaskCache prev) {
+		ax = prev.ax;
+		ay = prev.ay;
+		az = prev.az;
+		bx = prev.bx;
+		by = prev.by;
+		bz = prev.bz;
+		chunkGetter = prev.chunkGetter;
+		lightStorage = prev.lightStorage;
+		sax = prev.sax;
+		say = prev.say;
+		saz = prev.saz;
+		lenx = prev.lenx;
+		leny = prev.leny;
+		lenz = prev.lenz;
+		chunkCache = prev.chunkCache;
+		lightCache = prev.lightCache;
 	}
 
-	public LightChunk getLightChunk(int x, int y, int z) {
-		int sx = SectionPos.blockToSectionCoord(ax) - sax;
-		int sz = SectionPos.blockToSectionCoord(az) - saz;
-		return cache[sx + sz * lenx];
+	public BlockState getState(int x, int y, int z) {
+		return getCachedChunk(x, z).getBlockState(mutpos.set(x, y, z));
+	}
+
+	public LightChunk getCachedChunk(int x, int z) {
+		int sx = SectionPos.blockToSectionCoord(x);
+		int sz = SectionPos.blockToSectionCoord(z);
+		return chunkCache[sx - sax][sz - saz];
+	}
+
+	public ByteDataLayer getCachedDataLayer(int x, int y, int z) {
+		int sx = SectionPos.blockToSectionCoord(x);
+		int sy = SectionPos.blockToSectionCoord(y);
+		int sz = SectionPos.blockToSectionCoord(z);
+		return lightCache[sx - sax][sy - say][sz - saz];
+	}
+
+	public void AddLightLevel(int x, int y, int z, int value) {
+		getCachedDataLayer(x, y, z).absoluteAdd(x, y, z, value);
+	}
+
+	public void notifyUpdate(int x, int y, int z) {
+		this.lightStorage.notifyUpdate(x, y, z);
 	}
 
 	public static interface ITaskCacheFactory {
@@ -72,6 +118,14 @@ public class TaskCache implements IBlockStateProvider {
 
 		default TaskCache createWithRange(int x, int y, int z, int range) {
 			return create(x - range, y - range, z - range, x + range, y + range, z + range);
+		}
+
+		default TaskCache createWithRange(Vector3i xyz, int range) {
+			return createWithRange(xyz.x, xyz.y, xyz.z, range);
+		}
+
+		default TaskCache createWithRange(BlockPos xyz, int range) {
+			return createWithRange(xyz.getX(), xyz.getY(), xyz.getZ(), range);
 		}
 
 		default TaskCache createWithQuadrant(int x, int y, int z, int range, Quadrant quadrant) {

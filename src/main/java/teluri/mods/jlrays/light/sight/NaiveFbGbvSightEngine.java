@@ -77,7 +77,9 @@ public class NaiveFbGbvSightEngine {
 	}
 
 	public static void forEachQuadrants(Consumer<Quadrant> step) {
-		Stream.of(QUADRANTS).parallel().forEach(step);
+		Stream.of(QUADRANTS)//
+				.parallel()//
+				.forEach(step);
 	}
 
 	public static void forEachQuadrantsFilteredByTargets(Vector3i source, IPositionIterator iter, Consumer<Quadrant> step) {
