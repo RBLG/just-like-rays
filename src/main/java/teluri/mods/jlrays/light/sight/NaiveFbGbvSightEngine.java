@@ -2,13 +2,10 @@ package teluri.mods.jlrays.light.sight;
 
 import org.joml.Vector3i;
 
-import teluri.mods.jlrays.light.misc.TaskCache.ITaskCacheFactory;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
-import teluri.mods.jlrays.util.IPositionIterator;
-
 import static java.lang.Math.*;
 
 import java.util.function.Consumer;
@@ -78,68 +75,6 @@ public class NaiveFbGbvSightEngine {
 
 	public static void parallelForEachQuadrants(Consumer<Quadrant> step) {
 		Stream.of(QUADRANTS).parallel().forEach(step);
-	}
-
-	/**
-	 * run the FBGBV algorithm over all quadrant
-	 * 
-	 * @param origin position of the source of the light
-	 * @param range  max range that is iterated over
-	 * @param aprov  alpha provider
-	 * @param scons  sight consumer (output)
-	 */
-	public static void traceAllQuadrants(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons, ITaskCacheFactory fac) {
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			traceQuadrant(source, range, quadrant, aprov, scons, false);
-		});
-	}
-
-	/**
-	 * scout the visible area around a position to see if there is a visible light source
-	 */
-	public static void scoutAllQuadrants(Vector3i pos, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, ITaskCacheFactory fac) {
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			traceChangedQuadrant(pos, range, quadrant, oaprov, naprov, sucons, true);
-		});
-	}
-
-	/**
-	 * scoute the visible area around a position when there is no block updates in range
-	 */
-	public static void scoutAllQuadrantsUpdateless(Vector3i source, int range, IAlphaProvider aprov, ISightUpdateConsumer scons, ITaskCacheFactory fac) {
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			traceQuadrant(source, range, quadrant, aprov, scons, true);
-		});
-	}
-
-	/**
-	 * update the entire area around a source while handling block updates in range
-	 */
-	public static void traceAllQuadrants2(Vector3i source, int range, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, ITaskCacheFactory fac) {
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
-		});
-	}
-
-	/**
-	 * update the quadrants around a source that are impacted by at least one block update
-	 */
-	public static void traceAllChangedQuadrants2(Vector3i source, int range, IPositionIterator iter, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons,
-			ITaskCacheFactory fac) {
-		// check if there's a block update in a quadrant and if so, update the quadrant
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			Vector3i vtmp = new Vector3i();
-			iter.forEach((x, y, z) -> {
-				int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
-				int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
-				int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
-				if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
-					traceChangedQuadrant(source, range, quadrant, oaprov, naprov, sucons, false);
-					return true;
-				}
-				return false;
-			});
-		});
 	}
 
 	/**

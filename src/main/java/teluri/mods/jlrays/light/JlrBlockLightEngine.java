@@ -182,13 +182,6 @@ public class JlrBlockLightEngine {
 				NaiveFbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
 			}
 		});
-
-		// if (size == 0) {
-		// NaiveFbGbvSightEngine.scoutAllQuadrantsUpdateless(pos, MAX_RANGE, naprov, scons, taskCacheFactory);
-		// } else {
-		// IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size);
-		// NaiveFbGbvSightEngine.scoutAllQuadrants(pos, MAX_RANGE, oaprov, naprov, scons, taskCacheFactory);
-		// }
 	}
 
 	/**
