@@ -62,22 +62,22 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 			JustLikeRays.LOGGER.warn("could not do a proper add in DataLayer because it wasnt byte sized");
 			dataLayer.set(x, y, z, dataLayer.get(x, y, z) + lightLevel);
 		}
-		SectionPos.aroundAndAtBlockPos(levelPos, this.sectionsAffectedByLightUpdates::add);
+		notifyUpdate(BlockPos.getX(levelPos),BlockPos.getY(levelPos),BlockPos.getZ(levelPos));
 	}
 
-	public synchronized void notifyUpdate(int x, int y, int z) { //TODO remove synchronized perf hog
-		SectionPos.aroundAndAtBlockPos(x, y, z, this.sectionsAffectedByLightUpdates::add);
+	public void notifyUpdate(int x, int y, int z) { // TODO remove synchronized perf hog?
+		this.syncUsing(()->{
+			SectionPos.aroundAndAtBlockPos(x, y, z, this.sectionsAffectedByLightUpdates::add);
+		});
 	}
 
-	public synchronized void notifySectionUpdate(int x, int y, int z) {
-		LongConsumer consumer = this.sectionsAffectedByLightUpdates::add;
-		for (int itx = (x - 1); itx <= (x + 1); itx++) {
-			for (int ity = (y - 1); ity <= (y + 1); ity++) {
-				for (int itz = (z - 1); itz <= (z + 1); itz++) {
-					consumer.accept(SectionPos.asLong(itx, ity, itz));
-				}
-			}
-		}
+
+	public void notifySingleSectionUpdate(int x, int y, int z) {
+		this.sectionsAffectedByLightUpdates.add(SectionPos.asLong(x, y, z));
+	}
+
+	public synchronized void syncUsing(Runnable action) {
+		action.run();
 	}
 
 	public int getFullStoredLevel(long levelPos) {

@@ -157,7 +157,7 @@ public class JlrBlockLightEngine {
 
 		// MutableBlockPos mutpos0 = new MutableBlockPos();
 
-		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+		NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
 			TaskCache taskCache = taskCacheFactory.createWithQuadrant(pos, MAX_RANGE, quadrant);
 
 			ISightUpdateConsumer scons = (source, unused1, unused2) -> {
@@ -222,8 +222,8 @@ public class JlrBlockLightEngine {
 		int newemit = newbs.getLightEmission();
 
 		if (oldemit != newemit) {
-			TaskCache pretaskCache = taskCacheFactory.createWithRange(source, 0);
-			updateLight(source, source, 1, 1, oldemit, newemit, pretaskCache);
+			int change=this.getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
+			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
 
@@ -231,42 +231,41 @@ public class JlrBlockLightEngine {
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
 		int size = filterBlockUpdatesByRange(source, inrangepos, inrangebs, range);
 
-		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
-			TaskCache taskCache = taskCacheFactory.createWithQuadrant(source, MAX_RANGE, quadrant);
+		NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
+			TaskCache taskCache = taskCacheFactory.createWithQuadrant(source, range, quadrant);
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 
-			if (size == 0) {
-				if (oldemit != newemit) {
-					// if no updates are around, its always an emit change, unless it was a bad approximation
-
-					NaiveFbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
-				}
-			} else {
+			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				if (oldemit != newemit) {
-
-					NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
-				} else {
-					Vector3i vtmp = new Vector3i();
-					for (int it = 0; it < size; it++) { // TODO re chop it into smaller functions
-						long target = inrangepos[it];
-						int x, y, z;
-						x = BlockPos.getX(target);
-						y = BlockPos.getY(target);
-						z = BlockPos.getZ(target);
-						int comp1 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
-						int comp2 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
-						int comp3 = NaiveFbGbvSightEngine.sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
-						if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
-							NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
-							break;
-						}
-					}
-
-				}
+				NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+			} else if (oldemit != newemit) {
+				// if no updates are around, its always an emit change, unless it was a bad approximation
+				NaiveFbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
 			}
+			taskCache.applyAffectedCache();
 		});
+	}
+
+	public boolean isQuadrantChanged(long[] inrangepos, int size, Vector3i source, Quadrant quadrant) {
+		Vector3i vtmp = new Vector3i();
+		for (int it = 0; it < size; it++) {
+			long target = inrangepos[it];
+			int x = BlockPos.getX(target);
+			int y = BlockPos.getY(target);
+			int z = BlockPos.getZ(target);
+			int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
+			int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
+			int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
+			if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public static int sum(Vector3i vec) { // TODO deduplicate and put it into a math helper class
+		return vec.x + vec.y + vec.z;
 	}
 
 	/**
@@ -335,13 +334,14 @@ public class JlrBlockLightEngine {
 			int range = getRange(i);
 
 			TaskCache taskCacheAll = this.taskCacheFactory.createWithRange(blockPos, range);
-			NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
 				TaskCache taskCache = new TaskCache(taskCacheAll);
 
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
 				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 				NaiveFbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+				taskCache.applyAffectedCache();
 			});
 		});
 	}
@@ -440,18 +440,24 @@ public class JlrBlockLightEngine {
 	 * @param newemit new emition value
 	 */
 	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
-		// long longpos = BlockPos.asLong(xyz.x, xyz.y, xyz.z);
 		ByteDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
-		if (data == null) {
-			return;
+		int change = data == null ? 0 : getLightUpdateChangeValue(source, xyz, ovisi, nvisi, oldemit, newemit); // ternary operator cuz its compact
+		if (change != 0) {
+			data.absoluteAdd(xyz.x, xyz.y, xyz.z, change);
+			taskCache.notifyUpdate(xyz.x, xyz.y, xyz.z);
 		}
+	}
+
+	/*
+	 * get the light update change value without actually applying it
+	 */
+	private int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
 		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
 
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
 
-		data.absoluteAdd(xyz.x, xyz.y, xyz.z, -oival + nival);
-		//this.lightStorage.noticeUpdate(xyz.x, xyz.y, xyz.z);
+		return -oival + nival;
 	}
 
 	/**

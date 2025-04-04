@@ -143,7 +143,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 	}
 
 	@Override
-	public void noticeUpdate(int x, int y, int z) {
+	public void notifyUpdate(int x, int y, int z) {
 		this.storage.notifyUpdate(x, y, z);
 	}
 

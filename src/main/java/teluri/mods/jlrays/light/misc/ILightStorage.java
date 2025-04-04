@@ -30,5 +30,5 @@ public interface ILightStorage {
 
 	public ByteDataLayer getDataLayer(int x, int y, int z);
 
-	public void noticeUpdate(int x, int y, int z);
+	public void notifyUpdate(int x, int y, int z);
 }

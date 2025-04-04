@@ -31,6 +31,7 @@ public class TaskCache implements IBlockStateProvider {
 
 	protected final LightChunk[][] chunkCache;
 	protected final ByteDataLayer[][][] lightCache;
+	protected final boolean[][][] affectedCache;
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
 		// int ax, ay, az, bx, by, bz;
@@ -57,13 +58,12 @@ public class TaskCache implements IBlockStateProvider {
 
 		chunkCache = new LightChunk[lenx][lenz];
 		lightCache = new ByteDataLayer[lenx][leny][lenz];
+		affectedCache = new boolean[lenx + 2][leny + 2][lenz + 2];
 		for (int itx = sax; itx <= sbx; itx++) {
 			for (int itz = saz; itz <= sbz; itz++) {
 				chunkCache[itx - sax][itz - saz] = chunkGetter.getChunkForLighting(itx, itz);
 				for (int ity = say; ity <= sby; ity++) {
 					lightCache[itx - sax][ity - say][itz - saz] = lightStorage.getDataLayerForCaching(itx, ity, itz);
-					lightStorage.notifySectionUpdate(itx, ity, itz);
-					// TODO? lightStorage.notifySectionUpdate(itx, ity, itz);
 				}
 			}
 		}
@@ -86,6 +86,7 @@ public class TaskCache implements IBlockStateProvider {
 		lenz = prev.lenz;
 		chunkCache = prev.chunkCache;
 		lightCache = prev.lightCache;
+		affectedCache = new boolean[lenx + 2][leny + 2][lenz + 2];
 	}
 
 	public BlockState getState(int x, int y, int z) {
@@ -110,7 +111,37 @@ public class TaskCache implements IBlockStateProvider {
 	}
 
 	public void notifyUpdate(int x, int y, int z) {
-		this.lightStorage.notifyUpdate(x, y, z);
+		int sx1 = SectionPos.blockToSectionCoord(x - 1) - sax + 1;
+		int sy1 = SectionPos.blockToSectionCoord(y - 1) - say + 1;
+		int sz1 = SectionPos.blockToSectionCoord(z - 1) - saz + 1;
+		int sx2 = SectionPos.blockToSectionCoord(x + 1) - sax + 1;
+		int sy2 = SectionPos.blockToSectionCoord(y + 1) - say + 1;
+		int sz2 = SectionPos.blockToSectionCoord(z + 1) - saz + 1;
+		if (sx1 == sx2 && sy1 == sy2 && sz1 == sz2) {
+			affectedCache[sx1][sy1][sz1] = true;
+		} else {
+			for (int itx = sx1; itx <= sx2; itx++) {
+				for (int ity = sy1; ity <= sy2; ity++) {
+					for (int itz = sz1; itz <= sz2; itz++) {
+						affectedCache[itx][ity][itz] = true;
+					}
+				}
+			}
+		}
+	}
+
+	public void applyAffectedCache() {
+		this.lightStorage.syncUsing(() -> { // keep notifying the section updates
+			for (int itx = sax; itx <= sax + lenx; itx++) {
+				for (int ity = say; ity <= say + leny; ity++) {
+					for (int itz = saz; itz <= saz + lenz; itz++) {
+						if (affectedCache[itx - sax + 1][ity - say + 1][itz - saz + 1]) { // +1 because affectedCache has a 1 section border around lightCache
+							this.lightStorage.notifySingleSectionUpdate(itx, ity, itz);
+						}
+					}
+				}
+			}
+		});
 	}
 
 	public static interface ITaskCacheFactory {

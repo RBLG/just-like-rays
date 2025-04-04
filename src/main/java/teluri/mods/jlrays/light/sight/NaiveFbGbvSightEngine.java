@@ -76,26 +76,8 @@ public class NaiveFbGbvSightEngine {
 		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
 
-	public static void forEachQuadrants(Consumer<Quadrant> step) {
-		Stream.of(QUADRANTS)//
-				.parallel()//
-				.forEach(step);
-	}
-
-	public static void forEachQuadrantsFilteredByTargets(Vector3i source, IPositionIterator iter, Consumer<Quadrant> step) {
-		Stream.of(QUADRANTS).parallel().forEach((quadrant) -> {
-			Vector3i vtmp = new Vector3i();
-			iter.forEach((x, y, z) -> {
-				int comp1 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis1));
-				int comp2 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis2));
-				int comp3 = sum(vtmp.set(x, y, z).sub(source).mul(quadrant.axis3));
-				if (0 <= comp1 && 0 <= comp2 && 0 <= comp3) {
-					step.accept(quadrant);
-					return true;
-				}
-				return false;
-			});
-		});
+	public static void parallelForEachQuadrants(Consumer<Quadrant> step) {
+		Stream.of(QUADRANTS).parallel().forEach(step);
 	}
 
 	/**
