@@ -100,7 +100,8 @@ public class JlrBlockLightEngine {
 		Vector3i vtmp = new Vector3i();
 
 		// scout the area around block updates to find light sources that need to be updated
-		sectionChangeMap.forEach((longpos, secupd) -> {
+		sectionChangeMap.long2ObjectEntrySet().parallelStream().forEach((entry) -> {
+			SectionUpdate secupd = entry.getValue();
 			if (secupd.isSingleBlock()) {
 				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
 				evaluateImpactedSources(vtmp);
@@ -185,13 +186,15 @@ public class JlrBlockLightEngine {
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
+		int sx1 = secupd.x1 - MAX_RANGE, sy1 = secupd.y1 - MAX_RANGE, sz1 = secupd.z1 - MAX_RANGE;
+		int sx2 = secupd.x2 + MAX_RANGE, sy2 = secupd.y2 + MAX_RANGE, sz2 = secupd.z2 + MAX_RANGE;
 
-		// MutableBlockPos mutpos0 = new MutableBlockPos();
-		for (int itx = secupd.x1 - MAX_RANGE; itx < secupd.x2 + MAX_RANGE; itx++) {
-			for (int ity = secupd.y1 - MAX_RANGE; ity < secupd.y2 + MAX_RANGE; ity++) {
-				for (int itz = secupd.z1 - MAX_RANGE; itz < secupd.z2 + MAX_RANGE; itz++) {
+		TaskCache taskCache = taskCacheFactory.create(sx1, sy1, sz1, sx2, sy2, sz2);
+		for (int itx = sx1; itx < sx2; itx++) {
+			for (int ity = sy1; ity < sy2; ity++) {
+				for (int itz = sz1; itz < sz2; itz++) {
 					// mutpos0.set(itx, ity, itz);
-					BlockState blockState = this.blockStateProvider.getState(itx, ity, itz);
+					BlockState blockState = taskCache.getState(itx, ity, itz);
 					int sourceemit = blockState.getLightEmission();
 					if (sourceemit != 0) {
 						syncAddSourceChange(BlockPos.asLong(itx, ity, itz), blockState);
