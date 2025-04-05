@@ -3,7 +3,6 @@ package teluri.mods.jlrays.light;
 import org.jetbrains.annotations.Nullable;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LightLayer;
@@ -71,15 +70,26 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		});
 	}
 
-
+	/**
+	 * unsynchronized way to add a section to the affected sections set
+	 */
 	public void notifySingleSectionUpdate(int x, int y, int z) {
 		this.sectionsAffectedByLightUpdates.add(SectionPos.asLong(x, y, z));
 	}
 
+	/**
+	 * trick to get a sync access to unsync methods
+	 * @param action
+	 */
 	public synchronized void syncUsing(Runnable action) {
 		action.run();
 	}
 
+	/**
+	 * get the full light level without tonemapping
+	 * @param levelPos
+	 * @return
+	 */
 	public int getFullStoredLevel(long levelPos) {
 		long l = SectionPos.blockToSection(levelPos);
 		DataLayer dataLayer = (ByteDataLayer) this.getDataLayer(l, true);
@@ -96,6 +106,9 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		}
 	}
 
+	/**
+	 * get data layer of a section coordinates while doing vanilla thingamagig so it should work like vanilla
+	 */
 	public ByteDataLayer getDataLayerForCaching(int x, int y, int z) {
 		long l = SectionPos.asLong(x, y, z);
 		if (!this.storingLightForSection(l)) {
@@ -147,9 +160,12 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 			return new JlrLightSectionStorage.JlrDataLayerStorageMap(this.map.clone());
 		}
 
+		/**
+		 * stateless version of getLayer
+		 */
 		@Override
 		@Nullable
-		public DataLayer getLayer(long sectionPos) { // make getLayer stateless
+		public DataLayer getLayer(long sectionPos) {
 			return this.map.get(sectionPos);
 		}
 	}

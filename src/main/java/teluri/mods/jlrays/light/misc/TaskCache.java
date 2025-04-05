@@ -14,24 +14,24 @@ import static java.lang.Math.*;
 import org.joml.Vector3i;
 
 /**
- * allow paralelization by reimplementing cache starlight style
+ * allow paralelization by reimplementing caches starlight style
  * 
  * @author RBLG
  * @since v0.0.7
  */
 public class TaskCache implements IBlockStateProvider {
-	protected final int ax, ay, az, bx, by, bz; // bounds
+	protected final int ax, ay, az, bx, by, bz; // bounds TODO make paralelization even cooler by using that to paralelize sources
 
-	protected final int sax, say, saz;
-	protected final int lenx, leny, lenz;
+	protected final int sax, say, saz; // lower corner of the bounds aka 0,0,0 in cache section coordinates
+	protected final int lenx, leny, lenz; // length of the caches
 
 	protected final MutableBlockPos mutpos = new MutableBlockPos();
 	protected final LightChunkGetter chunkGetter;
 	protected final JlrLightSectionStorage lightStorage;
 
-	protected final LightChunk[][] chunkCache;
-	protected final ByteDataLayer[][][] lightCache;
-	protected final boolean[][][] affectedCache;
+	protected final LightChunk[][] chunkCache; // blockstate sources
+	protected final ByteDataLayer[][][] lightCache; // light level data
+	protected final boolean[][][] affectedCache; // used to tell mc what section need to be rebuilt
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
 		// int ax, ay, az, bx, by, bz;
@@ -69,7 +69,7 @@ public class TaskCache implements IBlockStateProvider {
 		}
 	}
 
-	public TaskCache(TaskCache prev) {
+	private TaskCache(TaskCache prev) {
 		ax = prev.ax;
 		ay = prev.ay;
 		az = prev.az;
@@ -89,6 +89,9 @@ public class TaskCache implements IBlockStateProvider {
 		affectedCache = prev.affectedCache;
 	}
 
+	/**
+	 * copy this while sharing the caches (not the mutable block pos) (they are thread safe if handled correctly)
+	 */
 	public TaskCache shallowCopy() {
 		return new TaskCache(this);
 	}
@@ -114,6 +117,9 @@ public class TaskCache implements IBlockStateProvider {
 		getCachedDataLayer(x, y, z).absoluteAdd(x, y, z, value);
 	}
 
+	/**
+	 * store what sections are affected by the updates in the affectedCache
+	 */
 	public void notifyUpdate(int x, int y, int z) {
 		int sx1 = SectionPos.blockToSectionCoord(x - 1) - sax + 1;
 		int sy1 = SectionPos.blockToSectionCoord(y - 1) - say + 1;
@@ -134,6 +140,9 @@ public class TaskCache implements IBlockStateProvider {
 		}
 	}
 
+	/**
+	 * apply the affected cache to mc light engine's affected section set
+	 */
 	public void applyAffectedCache() {
 		this.lightStorage.syncUsing(() -> { // keep notifying the section updates
 			for (int itx = sax; itx <= sax + lenx; itx++) {
@@ -148,6 +157,10 @@ public class TaskCache implements IBlockStateProvider {
 		});
 	}
 
+	/**
+	 * factory for TaskCache
+	 */
+	@FunctionalInterface
 	public static interface ITaskCacheFactory {
 		public TaskCache create(int nax, int nay, int naz, int nbx, int nby, int nbz);
 

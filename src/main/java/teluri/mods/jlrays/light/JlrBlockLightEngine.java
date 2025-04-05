@@ -92,18 +92,6 @@ public class JlrBlockLightEngine {
 		return !changeMap.isEmpty();
 	}
 
-	public BlockState getState(int x, int y, int z) {
-		return this.blockStateProvider.getState(x, y, z);
-	}
-
-	public BlockState getState(Vector3i pos) {
-		return this.blockStateProvider.get(pos);
-	}
-
-	public BlockState getState(long pos) {
-		return this.blockStateProvider.get(pos);
-	}
-
 	/**
 	 * applies all updates in the queue
 	 */
@@ -122,14 +110,14 @@ public class JlrBlockLightEngine {
 		});
 		// updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
-			BlockState curr = getState(longpos);
+			BlockState curr = this.blockStateProvider.get(longpos);
 			vtmp.set(BlockPos.getX(longpos), BlockPos.getY(longpos), BlockPos.getZ(longpos));
 			updateImpactedSource(vtmp, prev, curr);
 
 		});
 		// as a security, set all newly opaque blocks' light to 0
 		changeMap.forEach((longpos, prev) -> {
-			BlockState curr = getState(longpos);
+			BlockState curr = this.blockStateProvider.get(longpos);
 			if (getAlpha(curr) == 0 && curr.getLightEmission() == 0) {
 				lightStorage.setLevel(longpos, 0);
 			}
@@ -183,6 +171,9 @@ public class JlrBlockLightEngine {
 		});
 	}
 	
+	/**
+	 * enforce synchronized access of sourceChangeMap put for async use
+	 */
 	private synchronized void syncAddSourceChange(long longpos,BlockState blockState) {
 		sourceChangeMap.putIfAbsent(longpos, blockState);
 	}
@@ -200,7 +191,7 @@ public class JlrBlockLightEngine {
 			for (int ity = secupd.y1 - MAX_RANGE; ity < secupd.y2 + MAX_RANGE; ity++) {
 				for (int itz = secupd.z1 - MAX_RANGE; itz < secupd.z2 + MAX_RANGE; itz++) {
 					// mutpos0.set(itx, ity, itz);
-					BlockState blockState = this.getState(itx, ity, itz);
+					BlockState blockState = this.blockStateProvider.getState(itx, ity, itz);
 					int sourceemit = blockState.getLightEmission();
 					if (sourceemit != 0) {
 						syncAddSourceChange(BlockPos.asLong(itx, ity, itz), blockState);
@@ -244,6 +235,9 @@ public class JlrBlockLightEngine {
 		preCache.applyAffectedCache();
 	}
 
+	/**
+	 * iterate over a list of positions and return if there's at least one in the quadrant's direction
+	 */
 	public boolean isQuadrantChanged(long[] inrangepos, int size, Vector3i source, Quadrant quadrant) {
 		Vector3i vtmp = new Vector3i();
 		for (int it = 0; it < size; it++) {
