@@ -170,11 +170,11 @@ public class JlrBlockLightEngine {
 			}
 		});
 	}
-	
+
 	/**
 	 * enforce synchronized access of sourceChangeMap put for async use
 	 */
-	private synchronized void syncAddSourceChange(long longpos,BlockState blockState) {
+	private synchronized void syncAddSourceChange(long longpos, BlockState blockState) {
 		sourceChangeMap.putIfAbsent(longpos, blockState);
 	}
 
@@ -426,10 +426,10 @@ public class JlrBlockLightEngine {
 	 * get the light update change value without actually applying it
 	 */
 	private static int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
+		float distinv = DISTANCE_RATIO / (1 + source.distanceSquared(xyz));
 
-		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
-		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi / dist * newemit - MINIMUM_VALUE), 0, newemit);
+		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi * distinv * oldemit - MINIMUM_VALUE), 0, oldemit);
+		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi * distinv * newemit - MINIMUM_VALUE), 0, newemit);
 
 		return -oival + nival;
 	}
