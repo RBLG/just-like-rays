@@ -24,7 +24,6 @@ import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
-import teluri.mods.jlrays.util.IPositionIterator.IPositionIteratorStep;
 import static teluri.mods.jlrays.util.MathHelper.*;
 
 /**
@@ -168,7 +167,7 @@ public class JlrBlockLightEngine {
 					float sourcerange = getRangeSquared(sourceemit);
 					double dist = source.distanceSquared(pos);
 					if (dist < sourcerange) {
-						sourceChangeMap.putIfAbsent(BlockPos.asLong(source.x, source.y, source.z), blockState);
+						syncAddSourceChange(BlockPos.asLong(source.x, source.y, source.z), blockState);
 					}
 				}
 				// no need to check for lightsources in previous blockStates, as they would already be in sourceChangemap
@@ -182,6 +181,10 @@ public class JlrBlockLightEngine {
 				NaiveFbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
 			}
 		});
+	}
+	
+	private synchronized void syncAddSourceChange(long longpos,BlockState blockState) {
+		sourceChangeMap.putIfAbsent(longpos, blockState);
 	}
 
 	/**
@@ -200,7 +203,7 @@ public class JlrBlockLightEngine {
 					BlockState blockState = this.getState(itx, ity, itz);
 					int sourceemit = blockState.getLightEmission();
 					if (sourceemit != 0) {
-						sourceChangeMap.putIfAbsent(BlockPos.asLong(itx, ity, itz), blockState);
+						syncAddSourceChange(BlockPos.asLong(itx, ity, itz), blockState);
 					}
 				}
 			}
@@ -215,7 +218,7 @@ public class JlrBlockLightEngine {
 		int newemit = newbs.getLightEmission();
 
 		if (oldemit != newemit) {
-			int change = this.getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
+			int change = getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -299,19 +302,6 @@ public class JlrBlockLightEngine {
 			yield (x, y, z) -> getOldStateWhen1(x, y, z, bs, target, taskCache);
 		}
 		};
-	}
-
-	/**
-	 * applies step to all positions in targets in size
-	 */
-	protected static boolean iterateOverUpdateList(long[] targets, int size, IPositionIteratorStep step) {
-		for (int it = 0; it < size; it++) {
-			long target = targets[it];
-			if (step.consume(BlockPos.getX(target), BlockPos.getY(target), BlockPos.getZ(target))) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -429,7 +419,7 @@ public class JlrBlockLightEngine {
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */
-	private void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
+	private static void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
 		ByteDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
 		int change = data == null ? 0 : getLightUpdateChangeValue(source, xyz, ovisi, nvisi, oldemit, newemit); // ternary operator cuz its compact
 		if (change != 0) {
@@ -441,7 +431,7 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the light update change value without actually applying it
 	 */
-	private int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
+	private static int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
 		float dist = 1 + source.distanceSquared(xyz) * DISTANCE_RATIO;
 
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi / dist * oldemit - MINIMUM_VALUE), 0, oldemit);
