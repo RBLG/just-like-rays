@@ -25,6 +25,7 @@ import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
 import teluri.mods.jlrays.util.IPositionIterator.IPositionIteratorStep;
+import static teluri.mods.jlrays.util.MathHelper.*;
 
 /**
  * handle light updates logic
@@ -155,10 +156,9 @@ public class JlrBlockLightEngine {
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
 		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
 
-		// MutableBlockPos mutpos0 = new MutableBlockPos();
-
-		NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
-			TaskCache taskCache = taskCacheFactory.createWithQuadrant(pos, MAX_RANGE, quadrant);
+		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
+		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can go away with sharing most of the cache, just not the mutpos
 
 			ISightUpdateConsumer scons = (source, unused1, unused2) -> {
 				BlockState blockState = taskCache.get(source);
@@ -215,7 +215,7 @@ public class JlrBlockLightEngine {
 		int newemit = newbs.getLightEmission();
 
 		if (oldemit != newemit) {
-			int change=this.getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
+			int change = this.getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -224,8 +224,9 @@ public class JlrBlockLightEngine {
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
 		int size = filterBlockUpdatesByRange(source, inrangepos, inrangebs, range);
 
-		NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
-			TaskCache taskCache = taskCacheFactory.createWithQuadrant(source, range, quadrant);
+		TaskCache preCache = this.taskCacheFactory.createWithRange(source, range);
+		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			TaskCache taskCache = preCache.shallowCopy();
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 
@@ -236,8 +237,8 @@ public class JlrBlockLightEngine {
 				// if no updates are around, its always an emit change, unless it was a bad approximation
 				NaiveFbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
 			}
-			taskCache.applyAffectedCache();
 		});
+		preCache.applyAffectedCache();
 	}
 
 	public boolean isQuadrantChanged(long[] inrangepos, int size, Vector3i source, Quadrant quadrant) {
@@ -255,10 +256,6 @@ public class JlrBlockLightEngine {
 			}
 		}
 		return false;
-	}
-
-	public static int sum(Vector3i vec) { // TODO deduplicate and put it into a math helper class
-		return vec.x + vec.y + vec.z;
 	}
 
 	/**
@@ -326,16 +323,16 @@ public class JlrBlockLightEngine {
 			int i = blockState.getLightEmission();
 			int range = getRange(i);
 
-			TaskCache taskCacheAll = this.taskCacheFactory.createWithRange(blockPos, range);
-			NaiveFbGbvSightEngine.parallelForEachQuadrants((quadrant) -> {
-				TaskCache taskCache = new TaskCache(taskCacheAll);
+			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
+			NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+				TaskCache taskCache = preCache.shallowCopy();
 
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
 				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 				NaiveFbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
-				taskCache.applyAffectedCache();
 			});
+			preCache.applyAffectedCache();
 		});
 	}
 
@@ -441,7 +438,7 @@ public class JlrBlockLightEngine {
 		}
 	}
 
-	/*
+	/**
 	 * get the light update change value without actually applying it
 	 */
 	private int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {

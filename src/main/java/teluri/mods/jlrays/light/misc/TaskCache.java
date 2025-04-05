@@ -86,7 +86,11 @@ public class TaskCache implements IBlockStateProvider {
 		lenz = prev.lenz;
 		chunkCache = prev.chunkCache;
 		lightCache = prev.lightCache;
-		affectedCache = new boolean[lenx + 2][leny + 2][lenz + 2];
+		affectedCache = prev.affectedCache;
+	}
+
+	public TaskCache shallowCopy() {
+		return new TaskCache(this);
 	}
 
 	public BlockState getState(int x, int y, int z) {

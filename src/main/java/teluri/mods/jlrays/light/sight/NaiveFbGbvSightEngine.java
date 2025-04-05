@@ -7,6 +7,7 @@ import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import static java.lang.Math.*;
+import static teluri.mods.jlrays.util.MathHelper.*;
 
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -43,10 +44,6 @@ public class NaiveFbGbvSightEngine {
 		}
 	}
 
-	public static int sum(Vector3i vec) {
-		return vec.x + vec.y + vec.z;
-	}
-
 	/**
 	 * standard weighted interpolation <br>
 	 * 
@@ -73,7 +70,7 @@ public class NaiveFbGbvSightEngine {
 		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
 
-	public static void parallelForEachQuadrants(Consumer<Quadrant> step) {
+	public static void forEachQuadrants(Consumer<Quadrant> step) {
 		Stream.of(QUADRANTS).parallel().forEach(step);
 	}
 
