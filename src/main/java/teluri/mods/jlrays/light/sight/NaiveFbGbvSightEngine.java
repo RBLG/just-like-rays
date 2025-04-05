@@ -95,8 +95,7 @@ public class NaiveFbGbvSightEngine {
 		// TODO implement early return
 		int size = range + 2;
 
-		// store the sight/visibility values of the last plane iterated over for
-		// incoming steps
+		// store the sight/visibility values of the last plane iterated over for incoming steps
 		float[] vbuffer = new float[size * size * 3];
 
 		// initialize the source sight values to visible
@@ -132,8 +131,7 @@ public class NaiveFbGbvSightEngine {
 					face2 *= alpha.f2;
 					face3 *= alpha.f3;
 
-					// output the sight unless its an edge without the priority and therefore skip
-					// to avoid duplicated edges output
+					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							scons.consume(xyz, 1, 1);
@@ -144,8 +142,7 @@ public class NaiveFbGbvSightEngine {
 					}
 					// weights are similar to 18 neigbors 3d classic gbv
 					// weights are it1, it2 and it3 except for those 3
-					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4. reach 0 when either it2
-																		// or it3 reach it1
+					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
 					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
