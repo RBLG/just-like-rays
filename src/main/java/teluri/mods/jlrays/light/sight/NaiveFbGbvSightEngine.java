@@ -98,6 +98,9 @@ public class NaiveFbGbvSightEngine {
 		// store the sight/visibility values of the last plane iterated over for incoming steps
 		float[] vbuffer = new float[size * size * 3];
 
+		// array of... its complicated. but it allow to skip a lot of the iteration
+		int[] lastPlaneVis = new int[size]; // init at 0
+
 		// initialize the source sight values to visible
 		vbuffer[0 + 0] = 1; // the source (1,0,0) neigbor's face 1
 		vbuffer[0 + size * 3 + 1] = 1; // the source (0,1,0) neigbor's face 2
@@ -107,8 +110,10 @@ public class NaiveFbGbvSightEngine {
 			vit1.set(quadr.axis1).mul(itr1); // first component of xyz
 			for (int itr2 = 0; itr2 <= range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1); // second component of xyz
-				for (int itr3 = 0; itr3 <= range; itr3++) {
+				int currentVis = 0;
+				for (int itr3 = 0; itr3 <= range; itr3++) { // TODO standardize if its <range or <=range
 					if (itr1 + itr2 + itr3 == 0) {
+						currentVis = 1;
 						continue; // skip if on the origin
 					}
 
@@ -120,12 +125,19 @@ public class NaiveFbGbvSightEngine {
 					float face3 = vbuffer[index + 2];
 
 					if (face1 == 0 && face2 == 0 && face3 == 0) {
+						if (lastPlaneVis[itr2 + 1] <= itr3 && lastPlaneVis[itr2] <= itr3) { //<= because diagonals are fine
+							break; // if depended on rows are out of sight from here, skip
+						}
 						continue; // if none of the faces had sight, skip this step
 					}
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
 
 					AlphaHolder alpha = aprov.get(xyz, quadr, ahol); // get this voxel alpha
+
+					if (alpha.block != 0) { // if light goes through, then row isnt yet out of sight
+						currentVis = itr3;
+					}
 
 					face1 *= alpha.f1;
 					face2 *= alpha.f2;
@@ -161,6 +173,7 @@ public class NaiveFbGbvSightEngine {
 					vbuffer[index + size * 3 + 1] = face5;
 					vbuffer[index + 3 + 2] = face6;
 				}
+				lastPlaneVis[itr2 + 1] = currentVis;
 			}
 		}
 
