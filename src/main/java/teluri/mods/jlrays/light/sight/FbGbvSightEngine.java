@@ -108,6 +108,7 @@ public class FbGbvSightEngine {
 
 		for (int itr1 = 0; itr1 <= range; itr1++) {
 			vit1.set(quadr.axis1).mul(itr1); // first component of xyz
+			boolean currentVis2 = false;
 			for (int itr2 = 0; itr2 <= range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1); // second component of xyz
 				int currentVis = 0;
@@ -125,7 +126,7 @@ public class FbGbvSightEngine {
 					float face3 = vbuffer[index + 2];
 
 					if (face1 == 0 && face2 == 0 && face3 == 0) {
-						if (lastPlaneVis[itr2 + 1] <= itr3 && lastPlaneVis[itr2] <= itr3) { //<= because diagonals are fine
+						if (lastPlaneVis[itr2 + 1] <= itr3 && lastPlaneVis[itr2] <= itr3) { // <= because diagonals are fine
 							break; // if depended on rows are out of sight from here, skip
 						}
 						continue; // if none of the faces had sight, skip this step
@@ -173,7 +174,11 @@ public class FbGbvSightEngine {
 					vbuffer[index + size * 3 + 1] = face5;
 					vbuffer[index + 3 + 2] = face6;
 				}
+				currentVis2 |= currentVis != 0;
 				lastPlaneVis[itr2 + 1] = currentVis;
+			}
+			if(!currentVis2) {
+				break;
 			}
 		}
 
