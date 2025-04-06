@@ -134,7 +134,7 @@ public class FbGbvSightEngine {
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
 
-					AlphaHolder alpha = aprov.get(xyz, quadr, ahol); // get this voxel alpha
+					AlphaHolder alpha = aprov.getAlphas(xyz, quadr, ahol); // get this voxel alpha
 
 					if (alpha.block != 0) { // if light goes through, then row isnt yet out of sight
 						currentVis = itr3;
@@ -244,12 +244,12 @@ public class FbGbvSightEngine {
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
 
-					oahol = oaprov.get(xyz, quadr, oahol);
+					oahol = oaprov.getAlphas(xyz, quadr, oahol);
 					oface1 *= oahol.f1;
 					oface2 *= oahol.f2;
 					oface3 *= oahol.f3;
 
-					nahol = naprov.get(xyz, quadr, nahol);
+					nahol = naprov.getAlphas(xyz, quadr, nahol);
 					nface1 *= nahol.f1;
 					nface2 *= nahol.f2;
 					nface3 *= nahol.f3;

@@ -162,7 +162,7 @@ public class JlrBlockLightEngine {
 				// no need to check for lightsources in previous blockStates, as they would already be in sourceChangemap
 			};
 
-			IAlphaProvider naprov = (xyz5, quadr, hol) -> getAlphases(xyz5, taskCache::getState, quadr, hol);
+			IAlphaProvider naprov = taskCache;
 			if (size == 0) {
 				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
 			} else {
@@ -225,7 +225,7 @@ public class JlrBlockLightEngine {
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
 			TaskCache taskCache = preCache.shallowCopy();
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
-			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
+			IAlphaProvider naprov = taskCache;
 
 			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
@@ -282,7 +282,7 @@ public class JlrBlockLightEngine {
 	 */
 	protected IAlphaProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size, taskCache);
-		return (xyz, quadr, hol) -> getAlphases(xyz, bsprov, quadr, hol);
+		return (xyz, quadr, hol) -> getAlphas(xyz, bsprov, quadr, hol);
 	}
 
 	/**
@@ -291,7 +291,7 @@ public class JlrBlockLightEngine {
 	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		return switch (size) {
 		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache);
-		case 0 /*             */ -> (x, y, z) -> taskCache.getState(x, y, z);
+		case 0 /*             */ -> taskCache;
 		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, oldbss, targets, size, taskCache);
 		case 1 /*             */ -> {
 			long target = targets[0];
@@ -316,7 +316,7 @@ public class JlrBlockLightEngine {
 
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
-				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
+				IAlphaProvider naprov = taskCache;
 				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
 			});
 			preCache.applyAffectedCache();
@@ -326,7 +326,7 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the transparency of a blockstate (0=opaque, 1=transparent)
 	 */
-	protected int getAlpha(BlockState state) {
+	public static int getAlpha(BlockState state) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
 		return (state.getLightBlock() <= 1) ? 1 : 0;
 	}
@@ -334,7 +334,7 @@ public class JlrBlockLightEngine {
 	/**
 	 * handle shape based occlusion
 	 */
-	private AlphaHolder getAlphases(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
+	public static AlphaHolder getAlphas(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
 		BlockState state = bsprov.get(xyz);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
 		hol.block = getAlpha(state);
@@ -364,7 +364,7 @@ public class JlrBlockLightEngine {
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, int ox, int oy, int oz) {
+	protected static float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, int ox, int oy, int oz) {
 		BlockState otherstate = bsprov.getState(ox, oy, oz);
 		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
@@ -373,7 +373,7 @@ public class JlrBlockLightEngine {
 		return !state.canOcclude() || !state.useShapeForLightOcclusion();
 	}
 
-	public boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
+	public static boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {
 		VoxelShape voxelShape = LightEngine.getOcclusionShape(state1, dir);
 		VoxelShape voxelShape2 = LightEngine.getOcclusionShape(state2, dir.getOpposite());
 		return Shapes.faceShapeOccludes(voxelShape, voxelShape2);

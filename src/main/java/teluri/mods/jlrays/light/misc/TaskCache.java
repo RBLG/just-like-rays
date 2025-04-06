@@ -7,7 +7,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.light.JlrBlockLightEngine;
 import teluri.mods.jlrays.light.JlrLightSectionStorage;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import static java.lang.Math.*;
 
@@ -19,7 +22,7 @@ import org.joml.Vector3i;
  * @author RBLG
  * @since v0.0.7
  */
-public class TaskCache implements IBlockStateProvider {
+public class TaskCache implements IBlockStateProvider,IAlphaProvider {
 	protected final int ax, ay, az, bx, by, bz; // bounds TODO make paralelization even cooler by using that to paralelize sources
 
 	protected final int sax, say, saz; // lower corner of the bounds aka 0,0,0 in cache section coordinates
@@ -155,6 +158,14 @@ public class TaskCache implements IBlockStateProvider {
 				}
 			}
 		});
+	}
+
+	/**
+	 * current alpha provider directly in there to avoid allocating by using lambdas
+	 */
+	@Override
+	public AlphaHolder getAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol) {
+		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol);
 	}
 
 	/**

@@ -12,6 +12,6 @@ public class AlphaHolder {
 
 	@FunctionalInterface
 	public interface IAlphaProvider {
-		AlphaHolder get(Vector3i xyz, Quadrant quadr, AlphaHolder hol);
+		AlphaHolder getAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol);
 	}
 }
