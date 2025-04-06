@@ -222,7 +222,7 @@ public class JlrBlockLightEngine {
 		int size = filterBlockUpdatesByRange(source, inrangepos, inrangebs, range);
 
 		TaskCache preCache = this.taskCacheFactory.createWithRange(source, range);
-		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
 			TaskCache taskCache = preCache.shallowCopy();
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
@@ -429,7 +429,7 @@ public class JlrBlockLightEngine {
 	 * get the light update change value without actually applying it
 	 */
 	private static int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float distinv = DISTANCE_RATIO / (1 + source.distanceSquared(xyz));
+		float distinv = 1 / (1 + source.distanceSquared(xyz) * DISTANCE_RATIO);
 
 		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi * distinv * oldemit - MINIMUM_VALUE), 0, oldemit);
 		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi * distinv * newemit - MINIMUM_VALUE), 0, newemit);
