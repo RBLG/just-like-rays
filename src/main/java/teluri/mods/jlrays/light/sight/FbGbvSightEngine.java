@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * @author RBLG
  * @since v0.0.4
  */
-public class NaiveFbGbvSightEngine {
+public class FbGbvSightEngine {
 	private static final int[] SIGNS = new int[] { 1, -1 };
 	// positive axis
 	private static final Vector3i X = new Vector3i(1, 0, 0);

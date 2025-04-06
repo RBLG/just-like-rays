@@ -18,7 +18,7 @@ import teluri.mods.jlrays.light.misc.ILightStorage;
 import teluri.mods.jlrays.light.misc.SectionUpdate;
 import teluri.mods.jlrays.light.misc.TaskCache;
 import teluri.mods.jlrays.light.misc.TaskCache.ITaskCacheFactory;
-import teluri.mods.jlrays.light.sight.NaiveFbGbvSightEngine;
+import teluri.mods.jlrays.light.sight.FbGbvSightEngine;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
@@ -145,7 +145,7 @@ public class JlrBlockLightEngine {
 		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
 
 		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
-		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can go away with sharing most of the cache, just not the mutpos
 
 			ISightUpdateConsumer scons = (source, unused1, unused2) -> {
@@ -164,10 +164,10 @@ public class JlrBlockLightEngine {
 
 			IAlphaProvider naprov = (xyz5, quadr, hol) -> getAlphases(xyz5, taskCache::getState, quadr, hol);
 			if (size == 0) {
-				NaiveFbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
+				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
 			} else {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				NaiveFbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
+				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
 			}
 		});
 	}
@@ -222,17 +222,17 @@ public class JlrBlockLightEngine {
 		int size = filterBlockUpdatesByRange(source, inrangepos, inrangebs, range);
 
 		TaskCache preCache = this.taskCacheFactory.createWithRange(source, range);
-		NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
+		FbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
 			TaskCache taskCache = preCache.shallowCopy();
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
 
 			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				NaiveFbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
 			} else if (oldemit != newemit) {
 				// if no updates are around, its always an emit change, unless it was a bad approximation
-				NaiveFbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
 			}
 		});
 		preCache.applyAffectedCache();
@@ -311,13 +311,13 @@ public class JlrBlockLightEngine {
 			int range = getRange(i);
 
 			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
-			NaiveFbGbvSightEngine.forEachQuadrants((quadrant) -> {
+			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 				TaskCache taskCache = preCache.shallowCopy();
 
 				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
 				IAlphaProvider naprov = (xyz, quadr, hol) -> getAlphases(xyz, taskCache::getState, quadr, hol);
-				NaiveFbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
 			});
 			preCache.applyAffectedCache();
 		});
