@@ -146,7 +146,7 @@ public class JlrBlockLightEngine {
 
 		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
-			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can go away with sharing most of the cache, just not the mutpos
+			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can get away with sharing most of the cache, just not the mutpos
 
 			ISightUpdateConsumer scons = (source, unused1, unused2) -> {
 				BlockState blockState = taskCache.get(source);
@@ -336,11 +336,8 @@ public class JlrBlockLightEngine {
 	 */
 	public static AlphaHolder getAlphas(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
 		BlockState state = bsprov.get(xyz);
-		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = 0;
-		hol.block = getAlpha(state);
-		if (hol.block == 0 || isEmptyShape(state)) {
-			hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block;
-		} else {
+		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = getAlpha(state);
+		if (hol.block != 0 && isntEmptyShape(state)) {
 			Direction d1 = 0 < quadr.axis1.x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2.y ? Direction.DOWN : Direction.UP;
 			Direction d3 = 0 < quadr.axis3.z ? Direction.NORTH : Direction.SOUTH;
@@ -369,8 +366,8 @@ public class JlrBlockLightEngine {
 		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
 
-	protected static boolean isEmptyShape(BlockState state) {
-		return !state.canOcclude() || !state.useShapeForLightOcclusion();
+	protected static boolean isntEmptyShape(BlockState state) {
+		return state.canOcclude() && state.useShapeForLightOcclusion();
 	}
 
 	public static boolean shapeOccludes(BlockState state1, BlockState state2, Direction dir) {

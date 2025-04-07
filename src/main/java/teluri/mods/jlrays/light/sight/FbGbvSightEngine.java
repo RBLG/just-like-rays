@@ -89,34 +89,26 @@ public class FbGbvSightEngine {
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
 		AlphaHolder ahol = new AlphaHolder();
-		if (range <= 0) {
-			return;
-		}
+		range = max(1, range); // 1 is the minimal possible range
 		int size = range + 2;
 
 		// store the sight/visibility values of the last plane iterated over for incoming steps
 		float[] vbuffer = new float[size * size * 3];
 
 		// array of... its complicated. but it allow to skip a lot of the iteration
-		int[] lastPlaneVis = new int[size]; // init at 0
+		int[] lRowVis = new int[size]; // init at 0
 
 		// initialize the source sight values to visible
-		vbuffer[0 + 0] = 1; // the source (1,0,0) neigbor's face 1
-		vbuffer[0 + size * 3 + 1] = 1; // the source (0,1,0) neigbor's face 2
-		vbuffer[0 + 3 + 2] = 1; // the source (0,0,1) neigbor's face 3
+		vbuffer[0 + 0 /*      */] = 1; // the source (1,0,0) neigbor's face 1
+		vbuffer[0 + 1 + size * 3] = 1; // the source (0,1,0) neigbor's face 2
+		vbuffer[0 + 2 + 3 /*  */] = 1; // the source (0,0,1) neigbor's face 3
 
-		for (int itr1 = 0; itr1 <= range; itr1++) {
-			vit1.set(quadr.axis1).mul(itr1); // first component of xyz
-			boolean currentVis2 = false;
-			for (int itr2 = 0; itr2 <= range; itr2++) {
+		for (int itr1 = 0; itr1 < range; itr1++) {
+			vit1.set(quadr.axis1).mul(itr1).add(origin); // first component of xyz
+			for (int itr2 = 0; itr2 < range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1); // second component of xyz
-				int currentVis = 0;
-				for (int itr3 = 0; itr3 <= range; itr3++) { // TODO standardize if its <range or <=range
-					if (itr1 + itr2 + itr3 == 0) {
-						currentVis = 1;
-						continue; // skip if on the origin
-					}
-
+				int rowVis = (itr1 + itr2 - 1) >>> 31;// (itr1 == 0 && itr2 == 0) ? 1 : 0; // if both are zero, itr3 start at 1
+				for (int itr3 = rowVis; itr3 < range; itr3++) { // TODO standardize if its <range or <=range
 					int index = ((itr2 * size) + itr3) * 3; // translate 2d coordinates to 1d for use as an array index
 
 					// get this voxel exposed faces from the buffer
@@ -125,18 +117,18 @@ public class FbGbvSightEngine {
 					float face3 = vbuffer[index + 2];
 
 					if (face1 == 0 && face2 == 0 && face3 == 0) {
-						if (lastPlaneVis[itr2 + 1] <= itr3 && lastPlaneVis[itr2] <= itr3) { // <= because diagonals are fine
+						if (lRowVis[itr2 + 1] <= itr3 && lRowVis[itr2] <= itr3) { // <= because diagonals are fine
 							break; // if depended on rows are out of sight from here, skip
 						}
 						continue; // if none of the faces had sight, skip this step
 					}
 
-					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
+					xyz.set(quadr.axis3).mul(itr3).add(vit2); // world position
 
-					AlphaHolder alpha = aprov.getAlphas(xyz, quadr, ahol); // get this voxel alpha
+					AlphaHolder alpha = aprov.getAlphas(xyz, quadr, ahol); // get this voxel alphas (assume faces values are multiplied by the block alpha)
 
 					if (alpha.block != 0) { // if light goes through, then row isnt yet out of sight
-						currentVis = itr3;
+						rowVis = itr3;
 					}
 
 					face1 *= alpha.f1;
@@ -147,37 +139,29 @@ public class FbGbvSightEngine {
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							scons.consume(xyz, 1, 1);
-						} else if (alpha.block != 0 && (face1 != 0 || face2 != 0 || face3 != 0)) {
-							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3) * alpha.block;
+						} else if (alpha.block != 0) {
+							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3);
 							scons.consume(xyz, voxelvisi, voxelvisi);
 						}
 					}
-					// weights are similar to 18 neigbors 3d classic gbv
-					// weights are it1, it2 and it3 except for those 3
+					// weights are similar to 18 neigbors 3d classic gbv, aka it1, it2 and it3 except for those 3
 					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
 					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
-					float face4, face5, face6;
-					if (alpha.block == 0) {
-						face4 = face5 = face6 = 0; // skip the computation
-					} else {
+					float face4 = 0, face5 = 0, face6 = 0;
+					if (alpha.block != 0) {
 						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.f4;
 						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.f5;
 						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.f6;
 					}
 
-					// write the results to the non exposed faces of this voxel (which are also the
-					// exposed faces of later processed voxels)
-					vbuffer[index + 0] = face4;
-					vbuffer[index + size * 3 + 1] = face5;
-					vbuffer[index + 3 + 2] = face6;
+					// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
+					vbuffer[index + 0 /*      */] = face4;
+					vbuffer[index + 1 + size * 3] = face5;
+					vbuffer[index + 2 + 3 /*  */] = face6;
 				}
-				currentVis2 |= currentVis != 0;
-				lastPlaneVis[itr2 + 1] = currentVis;
-			}
-			if(!currentVis2) {
-				break;
+				lRowVis[itr2 + 1] = rowVis;
 			}
 		}
 
@@ -200,9 +184,7 @@ public class FbGbvSightEngine {
 		final Vector3i xyz = new Vector3i();
 		AlphaHolder oahol = new AlphaHolder();
 		AlphaHolder nahol = new AlphaHolder();
-		if (range <= 0) {
-			return;
-		}
+		range = max(1, range);
 
 		int size = range + 2;
 
@@ -210,23 +192,18 @@ public class FbGbvSightEngine {
 		float[] ovbuffer = new float[size * size * 3]; // variables prefixed with o (for old) refer to pre block update
 		float[] nvbuffer = new float[size * size * 3]; // variables prefixed with n (for new) refer to post block update
 
-		ovbuffer[0 + 0] = 1; // the source (1,0,0) neigbor's face 1
-		ovbuffer[0 + size * 3 + 1] = 1; // the source (0,1,0) neigbor's face 2
-		ovbuffer[0 + 3 + 2] = 1; // the source (0,0,1) neigbor's face 3
+		int[] lRowsVis = new int[size];
 
-		nvbuffer[0 + 0] = 1;
-		nvbuffer[0 + size * 3 + 1] = 1;
-		nvbuffer[0 + 3 + 2] = 1;
+		ovbuffer[0 + 0 /*      */] = nvbuffer[0 + 0 /*      */] = 1; // the source (1,0,0) neigbor's face 1
+		ovbuffer[0 + 1 + size * 3] = nvbuffer[0 + 1 + size * 3] = 1; // the source (0,1,0) neigbor's face 2
+		ovbuffer[0 + 2 + 3 /*  */] = nvbuffer[0 + 2 + 3 /*  */] = 1; // the source (0,0,1) neigbor's face 3
 
-		for (int itr1 = 0; itr1 <= range; itr1++) {
-			vit1.set(quadr.axis1).mul(itr1);
-			for (int itr2 = 0; itr2 <= range; itr2++) {
+		for (int itr1 = 0; itr1 < range; itr1++) {
+			vit1.set(quadr.axis1).mul(itr1).add(origin);
+			for (int itr2 = 0; itr2 < range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1);
-				for (int itr3 = 0; itr3 <= range; itr3++) {
-					if (itr1 + itr2 + itr3 == 0) {
-						continue;
-					}
-
+				int rowVis = (itr1 + itr2 - 1) >>> 31;
+				for (int itr3 = rowVis; itr3 < range; itr3++) {
 					int index = ((itr2 * size) + itr3) * 3;
 
 					float oface1 = ovbuffer[index + 0];
@@ -238,10 +215,13 @@ public class FbGbvSightEngine {
 					float nface3 = nvbuffer[index + 2];
 
 					if (oface1 == 0 && oface2 == 0 && oface3 == 0 && nface1 == 0 && nface2 == 0 && nface3 == 0) {
+						if (lRowsVis[itr2 + 1] <= itr3 && lRowsVis[itr2] <= itr3) {
+							break;
+						}
 						continue;
 					}
 
-					xyz.set(quadr.axis3).mul(itr3).add(vit2).add(origin); // world position
+					xyz.set(quadr.axis3).mul(itr3).add(vit2); // world position
 
 					oahol = oaprov.getAlphas(xyz, quadr, oahol);
 					oface1 *= oahol.f1;
@@ -253,13 +233,17 @@ public class FbGbvSightEngine {
 					nface2 *= nahol.f2;
 					nface3 *= nahol.f3;
 
+					if (oahol.block != 0 || nahol.block != 0) {
+						rowVis = itr3;
+					}
+
 					// avoid duplicated edges
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							sucons.consume(xyz, 1, 1);
-						} else if ((oahol.block != 0 || nahol.block != 0) && (oahol != nahol || oface1 != nface1 || oface2 != nface2 || oface3 != nface3)) {
-							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3) * oahol.block;
-							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3) * nahol.block;
+						} else if (oahol.block != 0 || nahol.block != 0) {
+							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3);
+							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3);
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}
@@ -270,30 +254,27 @@ public class FbGbvSightEngine {
 					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
 
-					float oface4, oface5, oface6;
-					if (oahol.block == 0) {
-						oface4 = oface5 = oface6 = 0;
-					} else {
+					float oface4 = 0, oface5 = 0, oface6 = 0;
+					if (oahol.block != 0) {
 						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oahol.f4;
 						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oahol.f5;
 						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oahol.f6;
 					}
-					ovbuffer[index + 0] = oface4;
-					ovbuffer[index + size * 3 + 1] = oface5;
-					ovbuffer[index + 3 + 2] = oface6;
+					ovbuffer[index + 0 /*      */] = oface4;
+					ovbuffer[index + 1 + size * 3] = oface5;
+					ovbuffer[index + 2 + 3 /*  */] = oface6;
 
-					float nface4, nface5, nface6;
-					if (nahol.block == 0) {
-						nface4 = nface5 = nface6 = 0;
-					} else {
+					float nface4 = 0, nface5 = 0, nface6 = 0;
+					if (nahol.block != 0) {
 						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nahol.f4;
 						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nahol.f5;
 						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nahol.f6;
 					}
-					nvbuffer[index + 0] = nface4;
-					nvbuffer[index + size * 3 + 1] = nface5;
-					nvbuffer[index + 3 + 2] = nface6;
+					nvbuffer[index + 0 /*      */] = nface4;
+					nvbuffer[index + 1 + size * 3] = nface5;
+					nvbuffer[index + 2 + 3 /*  */] = nface6;
 				}
+				lRowsVis[itr2 + 1] = rowVis;
 			}
 		}
 
