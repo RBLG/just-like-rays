@@ -3,9 +3,13 @@ package teluri.mods.jlrays.light.misc;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
+import net.minecraft.world.level.lighting.ChunkSkyLightSources;
+import net.minecraft.world.level.material.FluidState;
 import teluri.mods.jlrays.light.ByteDataLayer;
 import teluri.mods.jlrays.light.JlrBlockLightEngine;
 import teluri.mods.jlrays.light.JlrLightSectionStorage;
@@ -13,6 +17,8 @@ import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import static java.lang.Math.*;
+
+import java.util.function.BiConsumer;
 
 import org.joml.Vector3i;
 
@@ -22,7 +28,7 @@ import org.joml.Vector3i;
  * @author RBLG
  * @since v0.0.7
  */
-public class TaskCache implements IBlockStateProvider,IAlphaProvider {
+public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	protected final int ax, ay, az, bx, by, bz; // bounds TODO make paralelization even cooler by using that to paralelize sources
 
 	protected final int sax, say, saz; // lower corner of the bounds aka 0,0,0 in cache section coordinates
@@ -32,8 +38,8 @@ public class TaskCache implements IBlockStateProvider,IAlphaProvider {
 	protected final LightChunkGetter chunkGetter;
 	protected final JlrLightSectionStorage lightStorage;
 
-	protected final LightChunk[][] chunkCache; // blockstate sources
-	protected final ByteDataLayer[][][] lightCache; // light level data
+	protected final LightChunk[][] chunkCache; // blockstate sources (never null)
+	protected final ByteDataLayer[][][] lightCache; // light level data (can be nulls)
 	protected final boolean[][][] affectedCache; // used to tell mc what section need to be rebuilt
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
@@ -64,7 +70,8 @@ public class TaskCache implements IBlockStateProvider,IAlphaProvider {
 		affectedCache = new boolean[lenx + 2][leny + 2][lenz + 2];
 		for (int itx = sax; itx <= sbx; itx++) {
 			for (int itz = saz; itz <= sbz; itz++) {
-				chunkCache[itx - sax][itz - saz] = chunkGetter.getChunkForLighting(itx, itz);
+				LightChunk chunk = chunkGetter.getChunkForLighting(itx, itz);
+				chunkCache[itx - sax][itz - saz] = chunk == null ? chunk : BEDROCK_GIVER;
 				for (int ity = say; ity <= sby; ity++) {
 					lightCache[itx - sax][ity - say][itz - saz] = lightStorage.getDataLayerForCaching(itx, ity, itz);
 				}
@@ -200,4 +207,47 @@ public class TaskCache implements IBlockStateProvider,IAlphaProvider {
 			return createWithQuadrant(xyz.x, xyz.y, xyz.z, range, quadrant);
 		}
 	}
+
+	/**
+	 * dummy LightChunk to ensure chunkCache has no null entry
+	 */
+	private static final LightChunk BEDROCK_GIVER = new LightChunk() {
+		{
+		}
+
+		@Override
+		public BlockEntity getBlockEntity(BlockPos pos) {
+			return null;
+		}
+
+		@Override
+		public BlockState getBlockState(BlockPos pos) {
+			return Blocks.BEDROCK.defaultBlockState();
+		}
+
+		@Override
+		public FluidState getFluidState(BlockPos pos) {
+			return null;
+		}
+
+		@Override
+		public int getHeight() {
+			return 0;
+		}
+
+		@Override
+		public int getMinY() {
+			return 0;
+		}
+
+		@Override
+		public void findBlockLightSources(BiConsumer<BlockPos, BlockState> output) {
+			// TODO implement findBlockLightSources through taskCache
+		}
+
+		@Override
+		public ChunkSkyLightSources getSkyLightSources() {
+			return null;
+		}
+	};
 }
