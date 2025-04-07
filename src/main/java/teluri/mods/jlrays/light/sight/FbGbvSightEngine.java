@@ -42,6 +42,8 @@ public class FbGbvSightEngine {
 		}
 	}
 
+	public static final float UNPOINTLIGHT_FIX = -0.5f; // bias the weights so the source doesnt act like a point light
+
 	/**
 	 * standard weighted interpolation <br>
 	 * 
@@ -145,9 +147,9 @@ public class FbGbvSightEngine {
 						}
 					}
 					// weights are similar to 18 neigbors 3d classic gbv, aka it1, it2 and it3 except for those 3
-					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
-					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
-					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
+					float f4w1 = max(0, itr1 - max(itr2, itr3) + UNPOINTLIGHT_FIX); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
+					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
+					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
 
 					float face4 = 0, face5 = 0, face6 = 0;
 					if (alpha.block != 0) {
@@ -250,9 +252,9 @@ public class FbGbvSightEngine {
 
 					// weights are it1, it2 and it3 except for those 3
 
-					float f4w1 = max(0, itr1 - max(itr2, itr3) + 0.5f); // weight 1 for face 4
-					float f5w2 = max(0, itr2 - max(itr1, itr3) + 0.5f); // weight 2 for face 5
-					float f6w3 = max(0, itr3 - max(itr1, itr2) + 0.5f); // weight 3 for face 6
+					float f4w1 = max(0, itr1 - max(itr2, itr3) + UNPOINTLIGHT_FIX); // weight 1 for face 4
+					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
+					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
 
 					float oface4 = 0, oface5 = 0, oface6 = 0;
 					if (oahol.block != 0) {
