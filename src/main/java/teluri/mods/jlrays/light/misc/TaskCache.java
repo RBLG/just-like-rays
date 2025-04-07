@@ -71,7 +71,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		for (int itx = sax; itx <= sbx; itx++) {
 			for (int itz = saz; itz <= sbz; itz++) {
 				LightChunk chunk = chunkGetter.getChunkForLighting(itx, itz);
-				chunkCache[itx - sax][itz - saz] = chunk == null ? chunk : BEDROCK_GIVER;
+				chunkCache[itx - sax][itz - saz] = chunk != null ? chunk : BEDROCK_GIVER;
 				for (int ity = say; ity <= sby; ity++) {
 					lightCache[itx - sax][ity - say][itz - saz] = lightStorage.getDataLayerForCaching(itx, ity, itz);
 				}
