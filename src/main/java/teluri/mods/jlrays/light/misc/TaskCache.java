@@ -10,6 +10,7 @@ import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.ChunkSkyLightSources;
 import net.minecraft.world.level.material.FluidState;
+import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.ByteDataLayer;
 import teluri.mods.jlrays.light.JlrBlockLightEngine;
 import teluri.mods.jlrays.light.JlrLightSectionStorage;
@@ -44,22 +45,22 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
 		// int ax, ay, az, bx, by, bz;
-		ax = nax;
-		ay = nay;
-		az = naz;
-		bx = nbx;
-		by = nby;
-		bz = nbz;
+		ax = nax - 1;
+		ay = nay - 1;
+		az = naz - 1;
+		bx = nbx + 1;
+		by = nby + 1;
+		bz = nbz + 1;
 		chunkGetter = nchunkgetter;
 		lightStorage = nlightstorage;
 
 		int sbx, sby, sbz;
-		sax = SectionPos.blockToSectionCoord(ax);
-		say = SectionPos.blockToSectionCoord(ay);
-		saz = SectionPos.blockToSectionCoord(az);
-		sbx = SectionPos.blockToSectionCoord(bx);
-		sby = SectionPos.blockToSectionCoord(by);
-		sbz = SectionPos.blockToSectionCoord(bz);
+		sax = SectionPos.blockToSectionCoord(ax - 1);
+		say = SectionPos.blockToSectionCoord(ay - 1);
+		saz = SectionPos.blockToSectionCoord(az - 1);
+		sbx = SectionPos.blockToSectionCoord(bx + 1);
+		sby = SectionPos.blockToSectionCoord(by + 1);
+		sbz = SectionPos.blockToSectionCoord(bz + 1);
 
 		lenx = sbx - sax + 1;
 		leny = sby - say + 1;
@@ -111,9 +112,14 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	}
 
 	public LightChunk getCachedChunk(int x, int z) {
-		int sx = SectionPos.blockToSectionCoord(x);
-		int sz = SectionPos.blockToSectionCoord(z);
-		return chunkCache[sx - sax][sz - saz];
+		int sx = SectionPos.blockToSectionCoord(x) - sax;
+		int sz = SectionPos.blockToSectionCoord(z) - saz;
+		if (sx < 0 || lenx <= sx || sz < 0 || lenz <= sz) {// TODO monitor and fix oob
+			JustLikeRays.LOGGER.info("chunkCache oob at xz:" + x + "," + z + " sxz:" + sx + "," + sz + " saxz:" + sax + "," + saz);
+			LightChunk chunk = this.chunkGetter.getChunkForLighting(x, z);
+			return chunk == null ? BEDROCK_GIVER : chunk;
+		}
+		return chunkCache[sx][sz];
 	}
 
 	public ByteDataLayer getCachedDataLayer(int x, int y, int z) {
