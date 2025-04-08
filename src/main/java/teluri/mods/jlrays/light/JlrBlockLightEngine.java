@@ -154,7 +154,7 @@ public class JlrBlockLightEngine {
 				if (sourceemit != 0) {
 					// check is done as squared to avoid square roots
 					float sourcerange = getRangeSquared(sourceemit);
-					double dist = source.distanceSquared(pos);
+					long dist = source.distanceSquared(pos);
 					if (dist < sourcerange) {
 						syncAddSourceChange(BlockPos.asLong(source.x, source.y, source.z), blockState);
 					}
@@ -212,7 +212,7 @@ public class JlrBlockLightEngine {
 		int newemit = newbs.getLightEmission();
 
 		if (oldemit != newemit) {
-			int change = getLightUpdateChangeValue(source, source, 1, 1, oldemit, newemit);
+			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -415,7 +415,10 @@ public class JlrBlockLightEngine {
 	 */
 	private static void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
 		ByteDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
-		int change = data == null ? 0 : getLightUpdateChangeValue(source, xyz, ovisi, nvisi, oldemit, newemit); // ternary operator cuz its compact
+		if (data == null) {
+			return;
+		}
+		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit);
 		if (change != 0) {
 			data.absoluteAdd(xyz.x, xyz.y, xyz.z, change);
 			taskCache.notifyUpdate(xyz.x, xyz.y, xyz.z);
@@ -425,13 +428,17 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the light update change value without actually applying it
 	 */
-	private static int getLightUpdateChangeValue(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
+	private static int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
 		float distinv = 1 / (1 + source.distanceSquared(xyz) * DISTANCE_RATIO);
 
-		int oival = ovisi == 0 ? 0 : Math.clamp((int) (ovisi * distinv * oldemit - MINIMUM_VALUE), 0, oldemit);
-		int nival = nvisi == 0 ? 0 : Math.clamp((int) (nvisi * distinv * newemit - MINIMUM_VALUE), 0, newemit);
+		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
+		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
 
-		return -oival + nival;
+		return -oldlevel + newlevel;
+	}
+
+	private static int calculateLightLevel(float visi, float distinv, int emit) {
+		return visi == 0 ? 0 : Math.clamp((int) Math.floor(visi * distinv * emit - MINIMUM_VALUE), 0, emit); // TODO choose round or floor
 	}
 
 	/**

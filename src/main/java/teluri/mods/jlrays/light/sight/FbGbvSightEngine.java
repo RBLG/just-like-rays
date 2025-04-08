@@ -42,7 +42,7 @@ public class FbGbvSightEngine {
 		}
 	}
 
-	public static final float UNPOINTLIGHT_FIX = -0.5f; // bias the weights so the source doesnt act like a point light
+	public static final float UNPOINTLIGHT_FIX = 0.5f; // bias the weights so the source doesnt act like a point light
 
 	/**
 	 * standard weighted interpolation <br>
@@ -119,6 +119,8 @@ public class FbGbvSightEngine {
 					float face3 = vbuffer[index + 2];
 
 					if (face1 == 0 && face2 == 0 && face3 == 0) {
+						vbuffer[index + 1 + size * 3] = 0;
+						vbuffer[index + 2 + 3 /*  */] = 0;
 						if (lRowVis[itr2 + 1] <= itr3 && lRowVis[itr2] <= itr3) { // <= because diagonals are fine
 							break; // if depended on rows are out of sight from here, skip
 						}
@@ -151,22 +153,30 @@ public class FbGbvSightEngine {
 					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
 
-					float face4 = 0, face5 = 0, face6 = 0;
-					if (alpha.block != 0) {
-						face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.f4;
-						face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.f5;
-						face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.f6;
-					}
-
-					// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
-					vbuffer[index + 0 /*      */] = face4;
-					vbuffer[index + 1 + size * 3] = face5;
-					vbuffer[index + 2 + 3 /*  */] = face6;
+					applyFaces456(vbuffer, alpha, index, size, face1, face2, face3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
 				}
 				lRowVis[itr2 + 1] = rowVis;
 			}
 		}
 
+	}
+
+	private static void applyFaces456(float[] vbuffer, AlphaHolder alpha, int index, int size, //
+			float face1, float face2, float face3, //
+			int itr1, int itr2, int itr3, //
+			float f4w1, float f5w2, float f6w3 //
+	) {
+		float face4 = 0, face5 = 0, face6 = 0;
+		if (alpha.block != 0) {
+			face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.f4;
+			face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.f5;
+			face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.f6;
+		}
+
+		// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
+		vbuffer[index + 0 /*      */] = face4;
+		vbuffer[index + 1 + size * 3] = face5;
+		vbuffer[index + 2 + 3 /*  */] = face6;
 	}
 
 	/**
@@ -217,6 +227,10 @@ public class FbGbvSightEngine {
 					float nface3 = nvbuffer[index + 2];
 
 					if (oface1 == 0 && oface2 == 0 && oface3 == 0 && nface1 == 0 && nface2 == 0 && nface3 == 0) {
+						ovbuffer[index + 1 + size * 3] = 0;
+						ovbuffer[index + 2 + 3 /*  */] = 0;
+						nvbuffer[index + 1 + size * 3] = 0;
+						nvbuffer[index + 2 + 3 /*  */] = 0;
 						if (lRowsVis[itr2 + 1] <= itr3 && lRowsVis[itr2] <= itr3) {
 							break;
 						}
@@ -256,25 +270,8 @@ public class FbGbvSightEngine {
 					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
 					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
 
-					float oface4 = 0, oface5 = 0, oface6 = 0;
-					if (oahol.block != 0) {
-						oface4 = interpolate(oface1, f4w1, oface2, itr2, oface3, itr3) * oahol.f4;
-						oface5 = interpolate(oface1, itr1, oface2, f5w2, oface3, itr3) * oahol.f5;
-						oface6 = interpolate(oface1, itr1, oface2, itr2, oface3, f6w3) * oahol.f6;
-					}
-					ovbuffer[index + 0 /*      */] = oface4;
-					ovbuffer[index + 1 + size * 3] = oface5;
-					ovbuffer[index + 2 + 3 /*  */] = oface6;
-
-					float nface4 = 0, nface5 = 0, nface6 = 0;
-					if (nahol.block != 0) {
-						nface4 = interpolate(nface1, f4w1, nface2, itr2, nface3, itr3) * nahol.f4;
-						nface5 = interpolate(nface1, itr1, nface2, f5w2, nface3, itr3) * nahol.f5;
-						nface6 = interpolate(nface1, itr1, nface2, itr2, nface3, f6w3) * nahol.f6;
-					}
-					nvbuffer[index + 0 /*      */] = nface4;
-					nvbuffer[index + 1 + size * 3] = nface5;
-					nvbuffer[index + 2 + 3 /*  */] = nface6;
+					applyFaces456(ovbuffer, oahol, index, size, oface1, oface2, oface3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
+					applyFaces456(nvbuffer, nahol, index, size, nface1, nface2, nface3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
 				}
 				lRowsVis[itr2 + 1] = rowVis;
 			}
