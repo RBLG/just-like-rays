@@ -3,6 +3,7 @@ package teluri.mods.jlrays.light.misc;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -112,11 +113,17 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	}
 
 	public LightChunk getCachedChunk(int x, int z) {
-		int sx = SectionPos.blockToSectionCoord(x) - sax;
-		int sz = SectionPos.blockToSectionCoord(z) - saz;
+		int sx = SectionPos.blockToSectionCoord(x);
+		int sz = SectionPos.blockToSectionCoord(z);
+		return this.getCachedChunkFromSectionPos(sx, sz);
+	}
+
+	public LightChunk getCachedChunkFromSectionPos(int sx, int sz) {
+		sx -= sax;
+		sz -= saz;
 		if (sx < 0 || lenx <= sx || sz < 0 || lenz <= sz) {// TODO monitor and fix oob
-			JustLikeRays.LOGGER.info("chunkCache oob at xz:" + x + "," + z + " sxz:" + sx + "," + sz + " saxz:" + sax + "," + saz);
-			LightChunk chunk = this.chunkGetter.getChunkForLighting(x, z);
+			JustLikeRays.LOGGER.info("chunkCache oob at sxz:" + sx + "," + sz + " saxz:" + sax + "," + saz);
+			LightChunk chunk = this.chunkGetter.getChunkForLighting(sx + sax, sz + saz);
 			return chunk == null ? BEDROCK_GIVER : chunk;
 		}
 		return chunkCache[sx][sz];
@@ -126,6 +133,10 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		int sx = SectionPos.blockToSectionCoord(x);
 		int sy = SectionPos.blockToSectionCoord(y);
 		int sz = SectionPos.blockToSectionCoord(z);
+		return getCachedDataLayerFromSectionPos(sx, sy, sz);
+	}
+
+	public ByteDataLayer getCachedDataLayerFromSectionPos(int sx, int sy, int sz) {
 		return lightCache[sx - sax][sy - say][sz - saz];
 	}
 
@@ -181,6 +192,10 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol);
 	}
 
+	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
+		getCachedChunk(chunkPos.x, chunkPos.z).findBlockLightSources(consumer);
+	}
+
 	/**
 	 * factory for TaskCache
 	 */
@@ -218,42 +233,39 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	 * dummy LightChunk to ensure chunkCache has no null entry
 	 */
 	private static final LightChunk BEDROCK_GIVER = new LightChunk() {
-		{
-		}
-
-		@Override
-		public BlockEntity getBlockEntity(BlockPos pos) {
-			return null;
-		}
-
 		@Override
 		public BlockState getBlockState(BlockPos pos) {
 			return Blocks.BEDROCK.defaultBlockState();
 		}
 
 		@Override
+		public void findBlockLightSources(BiConsumer<BlockPos, BlockState> output) {
+			// simply does nothing.
+		}
+
+		@Override
+		public BlockEntity getBlockEntity(BlockPos pos) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public FluidState getFluidState(BlockPos pos) {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public int getHeight() {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public int getMinY() {
-			return 0;
-		}
-
-		@Override
-		public void findBlockLightSources(BiConsumer<BlockPos, BlockState> output) {
-			// TODO implement findBlockLightSources through taskCache
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public ChunkSkyLightSources getSkyLightSources() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 	};
 }

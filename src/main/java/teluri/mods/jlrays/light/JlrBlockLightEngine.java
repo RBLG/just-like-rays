@@ -306,6 +306,7 @@ public class JlrBlockLightEngine {
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
+		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int i = blockState.getLightEmission();
 			int range = getRange(i);
