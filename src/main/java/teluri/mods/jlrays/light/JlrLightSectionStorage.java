@@ -109,7 +109,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 	/**
 	 * get data layer of a section coordinates while doing vanilla thingamagig so it should work like vanilla
 	 */
-	public ByteDataLayer getDataLayerForCaching(int x, int y, int z) {
+	public synchronized ByteDataLayer getDataLayerForCaching(int x, int y, int z) {
 		long l = SectionPos.asLong(x, y, z);
 		if (!this.storingLightForSection(l)) {
 			return null;
