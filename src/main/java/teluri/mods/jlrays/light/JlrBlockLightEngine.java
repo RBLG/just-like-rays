@@ -289,15 +289,13 @@ public class JlrBlockLightEngine {
 	 * return the fastest blockstate provider based on the amount of block updates in range
 	 */
 	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
+		long target = targets[0];
+		BlockState bs = oldbss[0];
 		return switch (size) {
-		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache);
 		case 0 /*             */ -> taskCache;
-		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, oldbss, targets, size, taskCache);
-		case 1 /*             */ -> {
-			long target = targets[0];
-			BlockState bs = oldbss[0];
-			yield (x, y, z) -> getOldStateWhen1(x, y, z, bs, target, taskCache);
-		}
+		case 1 /*             */ -> (x, y, z) -> getOldStateWhenOne_(x, y, z, taskCache, bs, target);
+		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, taskCache, oldbss, targets, size);
+		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache);
 		};
 	}
 
@@ -380,14 +378,14 @@ public class JlrBlockLightEngine {
 	/**
 	 * blockstate provider for when there's a single block updates in range
 	 */
-	public BlockState getOldStateWhen1(int x, int y, int z, BlockState oldbs, long target, TaskCache taskCache) {
+	public BlockState getOldStateWhenOne_(int x, int y, int z, TaskCache taskCache, BlockState oldbs, long target) {
 		return target == BlockPos.asLong(x, y, z) ? oldbs : taskCache.getState(x, y, z);
 	}
 
 	/**
 	 * blockstate provider for when there's a small amount of block updates in range
 	 */
-	public BlockState getOldStateWhenSome(int x, int y, int z, BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
+	public BlockState getOldStateWhenSome(int x, int y, int z, TaskCache taskCache, BlockState[] oldbss, long[] targets, int size) {
 		for (int iter = 0; iter < size; iter++) {
 			if (targets[iter] == BlockPos.asLong(x, y, z)) {
 				return oldbss[iter];
@@ -439,7 +437,7 @@ public class JlrBlockLightEngine {
 	}
 
 	private static int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) Math.floor(visi * distinv * emit - MINIMUM_VALUE), 0, emit); // TODO choose round or floor
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - MINIMUM_VALUE), 0, emit); // TODO choose round or floor
 	}
 
 	/**

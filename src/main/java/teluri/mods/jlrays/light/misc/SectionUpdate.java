@@ -24,8 +24,8 @@ public class SectionUpdate {
 		x1 = Math.min(x1, pos.getX());
 		y1 = Math.min(y1, pos.getY());
 		z1 = Math.min(z1, pos.getZ());
-		x2 = Math.min(x2, pos.getX());
-		y2 = Math.min(y2, pos.getY());
-		z2 = Math.min(z2, pos.getZ());
+		x2 = Math.max(x2, pos.getX());
+		y2 = Math.max(y2, pos.getY());
+		z2 = Math.max(z2, pos.getZ());
 	}
 }

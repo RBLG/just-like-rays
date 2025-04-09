@@ -46,7 +46,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 		if (Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
 
 			this.lightEmission = 7;
-			//this.lightBlock = 15; //TODO still broken, just not the same way
+			this.lightBlock = 15;
 		}
 	}
 
