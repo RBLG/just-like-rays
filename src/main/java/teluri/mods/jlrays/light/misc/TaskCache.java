@@ -46,12 +46,12 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
 		// int ax, ay, az, bx, by, bz;
-		ax = nax - 1;
-		ay = nay - 1;
-		az = naz - 1;
-		bx = nbx + 1;
-		by = nby + 1;
-		bz = nbz + 1;
+		ax = nax;
+		ay = nay;
+		az = naz;
+		bx = nbx;
+		by = nby;
+		bz = nbz;
 		chunkGetter = nchunkgetter;
 		lightStorage = nlightstorage;
 
@@ -122,7 +122,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		sx -= sax;
 		sz -= saz;
 		if (sx < 0 || lenx <= sx || sz < 0 || lenz <= sz) {// TODO monitor and fix oob
-			JustLikeRays.LOGGER.info("chunkCache oob at sxz:" + sx + "," + sz + " saxz:" + sax + "," + saz);
+			JustLikeRays.LOGGER.info("chunk cache oob at s:" + sx + "," + sz + " sa:" + sax + "," + saz + " len:" + lenx + "," + lenz);
 			LightChunk chunk = this.chunkGetter.getChunkForLighting(sx + sax, sz + saz);
 			return chunk == null ? BEDROCK_GIVER : chunk;
 		}
