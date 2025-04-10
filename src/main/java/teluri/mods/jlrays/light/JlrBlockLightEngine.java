@@ -97,13 +97,13 @@ public class JlrBlockLightEngine {
 	 */
 	public void runLightUpdates() {
 		// MutableBlockPos mbptmp = new MutableBlockPos();
-		Vector3i vtmp = new Vector3i();
 
 		// scout the area around block updates to find light sources that need to be updated
 		sectionChangeMap.long2ObjectEntrySet().parallelStream().forEach((entry) -> {
 			SectionUpdate secupd = entry.getValue();
 			if (secupd.isSingleBlock()) {
-				vtmp.set(secupd.x1, secupd.y1, secupd.z1);
+				Vector3i vtmp = new Vector3i(secupd.x1, secupd.y1, secupd.z1);
+				//vtmp.set();
 				evaluateImpactedSources(vtmp);
 			} else { // if there's more than one update in the per section group, use an alternative to single block sight
 				groupApproximateImpactedSources(secupd);
@@ -111,6 +111,7 @@ public class JlrBlockLightEngine {
 		});
 		// updates light sources that need to be updated
 		sourceChangeMap.forEach((longpos, prev) -> {
+			Vector3i vtmp = new Vector3i();
 			BlockState curr = this.blockStateProvider.get(longpos);
 			vtmp.set(BlockPos.getX(longpos), BlockPos.getY(longpos), BlockPos.getZ(longpos));
 			updateImpactedSource(vtmp, prev, curr);
