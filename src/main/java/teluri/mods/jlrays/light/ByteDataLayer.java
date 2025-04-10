@@ -5,6 +5,7 @@ import java.util.Arrays;
 import org.joml.Math;
 
 import net.minecraft.Util;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.chunk.DataLayer;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
@@ -93,6 +94,13 @@ public class ByteDataLayer extends DataLayer {
 	@Override
 	public ByteDataLayer copy() {
 		return this.data == null ? new ByteDataLayer(this.defaultValue) : new ByteDataLayer((byte[]) this.data.clone());
+	}
+
+	public void absoluteAdd(int x, int y, int z, int value) {
+		x = SectionPos.sectionRelative(x);
+		y = SectionPos.sectionRelative(y);
+		z = SectionPos.sectionRelative(z);
+		add(x, y, z, value);
 	}
 
 	public void add(int x, int y, int z, int value) {
