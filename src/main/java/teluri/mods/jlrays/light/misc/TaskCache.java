@@ -2,6 +2,7 @@ package teluri.mods.jlrays.light.misc;
 
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -10,7 +11,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LightChunk;
 import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.ChunkSkyLightSources;
+import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.ByteDataLayer;
 import teluri.mods.jlrays.light.JlrBlockLightEngine;
@@ -189,11 +192,19 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	 */
 	@Override
 	public AlphaHolder getAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol) {
-		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol);
+		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol, this);
 	}
 
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
 		getCachedChunk(chunkPos.x, chunkPos.z).findBlockLightSources(consumer);
+	}
+
+	public int getLightBlock(BlockState blockstate, int x, int y, int z) {
+		return blockstate.getLightBlock(this.chunkGetter.getLevel(), mutpos.set(x, y, z));
+	}
+
+	public VoxelShape getOcclusionShape(BlockState state, Direction dir, int x, int y, int z) {
+		return LightEngine.getOcclusionShape(chunkGetter.getLevel(), mutpos.set(x, y, z), state, dir);
 	}
 
 	/**
@@ -259,7 +270,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		}
 
 		@Override
-		public int getMinY() {
+		public int getMinBuildHeight() {
 			throw new UnsupportedOperationException();
 		}
 
