@@ -147,4 +147,8 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		this.storage.notifyUpdate(x, y, z);
 	}
 
+	@Override
+	public void setLightEnabled(ChunkPos chunkPos, boolean enabled) {
+		super.setLightEnabled(chunkPos, enabled);
+	}
 }

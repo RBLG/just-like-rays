@@ -310,15 +310,19 @@ public class JlrBlockLightEngine {
 		lightStorage.setLightEnabled(chunkPos, true);
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
-			int i = blockState.getLightEmission();
-			int range = getRange(i);
+			int emit = blockState.getLightEmission();
+			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
+			this.lightStorage.addLevel(blockPos.asLong(), change);
+
+			int range = getRange(emit);
 
 			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
 			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 				TaskCache taskCache = preCache.shallowCopy();
 
-				Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, i, taskCache);
+				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
 				IAlphaProvider naprov = taskCache;
 				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
 			});
