@@ -1,34 +1,32 @@
 package teluri.mods.jlrays.mixin;
 
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
+import teluri.mods.jlrays.light.ByteDataLayer;
+
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+
+import io.netty.buffer.ByteBuf;
 
 @Mixin(ClientboundLightUpdatePacketData.class)
 public class ClientboundLightUpdatePacketDataMixin {
 
-	@ModifyArg(
-			method = "write(Lnet/minecraft/network/FriendlyByteBuf;)V",
-			at = @At(
-					value = "INVOKE",
-					target = "Lnet/minecraft/network/FriendlyByteBuf;writeCollection(Ljava/util/Collection;Lnet/minecraft/network/FriendlyByteBuf$Writer;)V"
-			),
-			index = 1
+	private static final StreamCodec<ByteBuf, byte[]> BLOCK_LIGHT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(ByteDataLayer.BYTE_SIZED);
+	
+	@ModifyExpressionValue(//
+			method = { "write(Lnet/minecraft/network/FriendlyByteBuf;)V", "<init>(Lnet/minecraft/network/FriendlyByteBuf;II)V" }, //
+			at = @At(//
+					value = "FIELD", //
+					target = "Lnet/minecraft/network/protocol/game/ClientboundLightUpdatePacketData;DATA_LAYER_STREAM_CODEC:Lnet/minecraft/network/codec/StreamCodec;", //
+					opcode = Opcodes.GETSTATIC, //
+					ordinal = 1//
+			) //
 	)
-	private <T> FriendlyByteBuf.Writer<T> modifyWriteCollection(FriendlyByteBuf.Writer<T> original) {
-		return (buffer, value) -> {
-			if (value instanceof byte[]) {
-				ensureWritable(buffer, ((byte[]) value).length);
-			}
-			original.accept(buffer, value);
-		};
-	}
-
-	private void ensureWritable(FriendlyByteBuf buffer, int minWritableBytes) {
-		if (buffer.writableBytes() < minWritableBytes) {
-			buffer.capacity(buffer.capacity() + minWritableBytes);
-		}
+	public StreamCodec<ByteBuf, byte[]> getBlockLightDataLayerStreamCodec(StreamCodec<ByteBuf, byte[]> prev) {
+		return BLOCK_LIGHT_DATA_LAYER_STREAM_CODEC;
 	}
 }
