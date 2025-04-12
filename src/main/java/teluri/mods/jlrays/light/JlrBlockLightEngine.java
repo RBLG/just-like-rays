@@ -442,7 +442,7 @@ public class JlrBlockLightEngine {
 	}
 
 	private static int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - MINIMUM_VALUE), 0, emit); // TODO choose round or floor
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - MINIMUM_VALUE), 0, emit);
 	}
 
 	/**
