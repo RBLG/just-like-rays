@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.material.FluidState;
+import teluri.mods.jlrays.JustLikeRays;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 
 /**
@@ -52,7 +53,12 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 			this.lightEmission = 7;
 
 			int lightBlock = fluidState.isSource() ? 15 : 0;
-			cache.lightBlock = lightBlock;
+			if (cache != null) {
+				cache.lightBlock = lightBlock;
+			} else {
+				
+				JustLikeRays.LOGGER.info("lava block's cache didnt existed so lightBlock couldnt be set, expect lava lakes to be laggy");
+			}
 		}
 	}
 
