@@ -31,6 +31,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	// private int lightBlock;
 	@Shadow
 	private FluidState fluidState;
+	@Shadow
 	@Nullable
 	protected BlockBehaviour.BlockStateBase.Cache cache;
 
@@ -49,15 +50,14 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
 		if (owner instanceof LiquidBlock && Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
-
 			this.lightEmission = 7;
 
-			int lightBlock = fluidState.isSource() ? 15 : 0;
-			if (cache != null) {
-				cache.lightBlock = lightBlock;
-			} else {
-				
-				JustLikeRays.LOGGER.info("lava block's cache didnt existed so lightBlock couldnt be set, expect lava lakes to be laggy");
+			if (fluidState.isSource()) {
+				if (cache != null) {
+					this.cache.lightBlock = 15;
+				} else {
+					JustLikeRays.LOGGER.warn("lava BlockState.cache was null, expect lava to be buggy/laggy");
+				}
 			}
 		}
 	}
