@@ -124,7 +124,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	public LightChunk getCachedChunkFromSectionPos(int sx, int sz) {
 		sx -= sax;
 		sz -= saz;
-		if (sx < 0 || lenx <= sx || sz < 0 || lenz <= sz) {// TODO monitor and fix oob
+		if (sx < 0 || lenx <= sx || sz < 0 || lenz <= sz) {
 			JustLikeRays.LOGGER.info("chunk cache oob at s:" + sx + "," + sz + " sa:" + sax + "," + saz + " len:" + lenx + "," + lenz);
 			LightChunk chunk = this.chunkGetter.getChunkForLighting(sx + sax, sz + saz);
 			return chunk == null ? BEDROCK_GIVER : chunk;

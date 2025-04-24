@@ -9,7 +9,8 @@ import org.joml.Math;
  * @since v0.0.4
  */
 public final class ToneMapperHelper {
-	private ToneMapperHelper() {}
+	private ToneMapperHelper() {
+	}
 
 	/**
 	 * reinhard tonemapping from https://64.github.io/tonemapping/#reinhard
@@ -44,4 +45,7 @@ public final class ToneMapperHelper {
 		}
 	}
 
+	public static int clamp(int value) {
+		return Math.min(value, 15);
+	}
 }

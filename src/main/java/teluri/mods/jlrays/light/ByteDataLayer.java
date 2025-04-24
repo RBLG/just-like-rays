@@ -57,7 +57,7 @@ public class ByteDataLayer extends DataLayer {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
-		return (int) ToneMapperHelper.tonemap(getFull(index), 15, 15);
+		return (int) ToneMapperHelper.clamp(getFull(index));//.tonemap(getFull(index), 15, 15);
 	}
 
 	public int getFull(int x, int y, int z) {
