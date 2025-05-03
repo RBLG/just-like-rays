@@ -1,7 +1,9 @@
 package teluri.mods.jlrays.mixin;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,11 +14,12 @@ import com.mojang.serialization.MapCodec;
 
 import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
+import teluri.mods.jlrays.config.Settings;
+import teluri.mods.jlrays.misc.IHasEmitProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 
 /**
@@ -24,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
  * @since v0.0.4
  */
 @Mixin(BlockStateBase.class)
-public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
+public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implements IHasEmitProperties {
 
 	@Shadow
 	private int lightEmission;
@@ -33,12 +36,8 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	@Shadow
 	private FluidState fluidState;
 
-	/**
-	 * modify emition and opacity of lava blockstates
-	 */
-	// @Inject(method = "<init>*", at = @At("TAIL"))
-	// protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
-	// }
+	@Nullable
+	protected EmitProperties emitprops = null;
 
 	/**
 	 * modify fields based on description id. will be used for settings
@@ -47,13 +46,35 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
-		if (owner instanceof LiquidBlock && Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
-
-			this.lightEmission = 7;
-
-			this.lightBlock = fluidState.isSource() ? 15 : 0;
-
+		ArrayList<Consumer<BlockStateBase>> bsmods = Settings.settings.blockstates.get(owner.getDescriptionId());
+		if (bsmods != null) {
+			for (Consumer<BlockStateBase> bsmod : bsmods) {
+				bsmod.accept((BlockStateBase) (Object) this);
+			}
 		}
+	}
+
+	@Override
+	public void setLightBlock(int value) {
+		lightBlock = value;
+	}
+
+	@Override
+	public void setLightEmit(int value) {
+		lightEmission = value;
+	}
+
+	@Override
+	public EmitProperties initEmitProperties() {
+		if (emitprops == null) {
+			emitprops = new EmitProperties();
+		}
+		return emitprops;
+	}
+
+	@Override
+	public @Nullable EmitProperties getEmitPropertiesNullable() {
+		return emitprops;
 	}
 
 	/**
