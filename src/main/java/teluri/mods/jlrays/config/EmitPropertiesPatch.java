@@ -14,12 +14,11 @@ import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
  * @since v0.2.0
  */
 @FunctionalInterface
-public interface EmitPropertiesModifier extends Consumer<BlockStateBase> {
+public interface EmitPropertiesPatch extends Consumer<BlockStateBase> {
 
 	default void accept(BlockStateBase bs) {
 		if (bs instanceof IHasEmitProperties bsep) {
-			EmitProperties ep = bsep.getEmitProperties();
-			apply(bs, bsep, ep);
+			apply(bs, bsep);
 			return;
 		} // else
 		String desid = bs.getBlock().getDescriptionId();
@@ -27,5 +26,16 @@ public interface EmitPropertiesModifier extends Consumer<BlockStateBase> {
 		JustLikeRays.LOGGER.warn("failed to modify blockstate properties, blockstate of block " + desid + " doesnt implement " + interf);
 	}
 
-	void apply(BlockStateBase bs, IHasEmitProperties bselp, IHasEmitProperties.EmitProperties ep);
+	void apply(BlockStateBase bs, IHasEmitProperties bselp);
+
+	@FunctionalInterface
+	public interface EmitPropertiesFullPatch extends EmitPropertiesPatch {
+
+		default void apply(BlockStateBase bs, IHasEmitProperties bselp) {
+			var ep=bselp.initEmitProperties();
+			apply(bs, bselp,ep );
+		}
+
+		void apply(BlockStateBase bs, IHasEmitProperties bselp, IHasEmitProperties.EmitProperties ep);
+	}
 }

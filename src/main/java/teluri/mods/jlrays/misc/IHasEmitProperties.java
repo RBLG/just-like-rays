@@ -25,5 +25,32 @@ public interface IHasEmitProperties {
 		public Vector3f offset = new Vector3f(0); // -0.5 to 0.5 range
 		public Vector3f radius = new Vector3f(0.5f); // offset+radius should be in the -0.5 to 0.5 range
 		public float falloff = 0.01f; // how fast light fall off
+
+		public boolean isValid() {
+			if (radius.x < 0 || radius.y < 0 || radius.z < 0) {
+				return false;
+			}
+			Vector3f tmp = new Vector3f();
+			tmp.set(offset).add(radius).absolute();
+			boolean aaa = tmp.x <= 0.5f && tmp.y <= 0.5f && tmp.z <= 0.5f;
+			tmp.set(offset).sub(radius).absolute();
+			boolean bbb = tmp.x <= 0.5f && tmp.y <= 0.5f && tmp.z <= 0.5f;
+			return aaa && bbb;
+		}
+
+		/**
+		 * enforce that offset
+		 */
+		public void enforceValidity() {
+			Vector3f tmp = new Vector3f();
+			// enforce that radius is positive
+			radius.max(tmp.set(0));
+			// enforce that radius fit the -0.5..0.5 bound
+			radius.min(tmp.set(0.5f));
+			// enforce superior bound
+			offset.min(tmp.set(0.5f).sub(radius));
+			// enforce inferior bound
+			offset.max(tmp.set(-0.5f).add(radius));
+		}
 	}
 }

@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
+import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.config.Settings;
 import teluri.mods.jlrays.misc.IHasEmitProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
@@ -46,10 +47,20 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
+		Settings.settings.notifyInitCache();
 		ArrayList<Consumer<BlockStateBase>> bsmods = Settings.settings.blockstates.get(owner.getDescriptionId());
 		if (bsmods != null) {
 			for (Consumer<BlockStateBase> bsmod : bsmods) {
-				bsmod.accept((BlockStateBase) (Object) this);
+				try {
+					bsmod.accept((BlockStateBase) (Object) this);
+				} catch (Exception e) {
+					JustLikeRays.LOGGER.error("exception in modifying blockstate: " + e.getMessage());
+					e.printStackTrace();
+				}
+			}
+			if (emitprops != null && !emitprops.isValid()) {
+				JustLikeRays.LOGGER.warn(owner.getDescriptionId() + "'s blockstate had invalid offset and/or radius");
+				emitprops.enforceValidity();
 			}
 		}
 	}

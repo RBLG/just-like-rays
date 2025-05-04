@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.function.Consumer;
 
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
+import org.joml.Vector3f;
+
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.EmitPropertiesPatch.EmitPropertiesFullPatch;
 import teluri.mods.jlrays.config.IChannelsHandler.ChannelsHandlers;
 import teluri.mods.jlrays.config.ILightLevelSizeHandler.LightLevelSizes;
 import teluri.mods.jlrays.config.ISamplesHandler.SamplesHandlers;
+import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 
 /**
  * settings for JLR.
@@ -25,7 +28,7 @@ public class Settings {
 	 */
 	public static final Settings settings = new Settings();
 
-	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates;
+	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates = new HashMap<>();
 
 	public final LightLevelSizes llsize = LightLevelSizes.BYTE;
 
@@ -38,29 +41,68 @@ public class Settings {
 	protected boolean late = false;
 
 	public Settings() {
-		blockstates = new HashMap<>();
-		addEpModifier("block.minecraft.lava", (bs, bsep, ep) -> {
+		addDefaultPatches();
+	}
+
+	public Builder on(String... keys) {
+		return new Builder(keys);
+	}
+
+	public class Builder {
+		final String[] keys;
+
+		public Builder(String[] nkeys) {
+			keys = nkeys;
+		}
+
+		public void addPatch(Consumer<BlockStateBase> bsmod) {
+			if (late) {
+				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
+			}
+			for (String key : keys) {
+				blockstates.computeIfAbsent(key, (v) -> new ArrayList<>()).add(bsmod);
+			}
+		}
+
+		public void addBasePatch(EmitPropertiesPatch bsmod) {
+			this.addPatch(bsmod);
+		}
+
+		public void addExtendedPatch(EmitPropertiesFullPatch bsmod) {
+			this.addPatch(bsmod);
+		}
+	}
+
+	public void notifyInitCache() {
+		late = true;
+	}
+
+	private void addDefaultPatches() {
+		on("block.minecraft.lava").addBasePatch((bs, bsep) -> {
 			bsep.setLightEmit(10);
 			bsep.setLightBlock(bs.getFluidState().isSource() ? 15 : 0);
 		});
-		addEpModifier("block.minecraft.torch", (bs, bsep, ep) -> {
-			ep.offset.set(0, 2 / 8f, 0);
-			ep.radius.set(1 / 8f);
+		on("block.minecraft.torch", "block.minecraft.soul_torch").addExtendedPatch((bs, bsep, ep) -> {
+			ep.offset.set(0, 2, 0).div(16);
+			ep.radius.set(1).div(16);
 		});
-
-	}
-
-	public void addModifier(String key, Consumer<BlockStateBase> bsmod) {
-		if (late) {
-			JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
-		}
-		ArrayList<Consumer<BlockStateBase>> list;
-		list = blockstates.computeIfAbsent(key, (v) -> new ArrayList<>());
-		list.add(bsmod);
-	}
-
-	public void addEpModifier(String key, EmitPropertiesModifier bsmod) {
-		this.addModifier(key, bsmod);
+		on("block.minecraft.wall_torch", "block.minecraft.soul_wall_torch").addExtendedPatch((bs, bsep, ep) -> {
+			Vector3f facing = bs.getValue(BlockStateProperties.FACING).getUnitVec3().toVector3f();
+			ep.offset.set(0, 2, 0).add(facing.mul(-5)).div(16);
+			ep.radius.set(1).div(16);
+		});
+		on("block.minecraft.lantern", "block.minecraft.soul_lantern").addExtendedPatch((bs, bsep, ep) -> {
+			float ofsy = bs.getValue(BlockStateProperties.HANGING) ? 4 : -4;
+			ep.offset.set(0, ofsy, 0).div(16);
+			ep.radius.set(2, 3, 2).div(16);
+		});
+		on("block.minecraft.campfire", "block.minecraft.soul_campfire").addBasePatch((bs, bsep) -> {
+			if (bs.getValue(BlockStateProperties.LIT)) {
+				EmitProperties ep = bsep.initEmitProperties();
+				ep.radius.set(6, 4, 6).div(16);
+				ep.offset.set(0, -2, 0).div(16);
+			}
+		});
 	}
 
 }
