@@ -7,6 +7,7 @@ import org.joml.Math;
 import net.minecraft.Util;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.chunk.DataLayer;
+import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
 /**
@@ -43,10 +44,17 @@ public class ByteDataLayer extends DataLayer {
 	 */
 	public ByteDataLayer(byte[] ndata) {
 		super(0);
-		this.data = ndata;
-		if (ndata.length != BYTE_SIZED) {
-			throw (IllegalArgumentException) Util.pauseInIde(new IllegalArgumentException("ByteDataLayer should be 4096 bytes not: " + ndata.length));
+		if (ndata.length == BYTE_SIZED) { // TODO update for config based size
+			this.data = ndata;
+		} else {
+			warnForIncorrectLength(ndata.length);
+			this.data = null;
 		}
+	}
+
+	public static void warnForIncorrectLength(int length) {
+		String msg = String.format("ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache", BYTE_SIZED, length);
+		JustLikeRays.LOGGER.warn(msg);
 	}
 
 	/**
@@ -57,7 +65,7 @@ public class ByteDataLayer extends DataLayer {
 		if (this.data == null) {
 			return this.defaultValue;
 		}
-		return (int) ToneMapperHelper.clamp(getFull(index));//.tonemap(getFull(index), 15, 15);
+		return (int) ToneMapperHelper.clamp(getFull(index));// .tonemap(getFull(index), 15, 15);
 	}
 
 	public int getFull(int x, int y, int z) {

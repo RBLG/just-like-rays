@@ -11,7 +11,7 @@ import teluri.mods.jlrays.light.ByteDataLayer;
 
 /**
  * @author RBLG
- * @since 
+ * @since
  */
 @Mixin(SerializableChunkData.class)
 public class ChunkSerializerMixin {
@@ -19,11 +19,17 @@ public class ChunkSerializerMixin {
 	/**
 	 * replace a call to the DataLayer(byte[]) to the ByteDataLayer equivalent at chunk loading
 	 */
-	@WrapOperation(// read(PoiManager,RegionStorageInfo,ChunkPos,CompoundTag)->ProtoChunk to parse(LevelHeightAccessor, RegistryAccess, CompoundTag)
+	@WrapOperation(
 			method = "parse*", //
 			at = @At(value = "NEW", target = "([B)Lnet/minecraft/world/level/chunk/DataLayer;", ordinal = 0))
 	static private DataLayer newDataLayerWithByteArray(byte[] data, Operation<DataLayer> original) {
-		return new ByteDataLayer(data);
+		if (data.length == ByteDataLayer.BYTE_SIZED) {
+			return new ByteDataLayer(data);
+		} else {
+			ByteDataLayer.warnForIncorrectLength(data.length);
+			return null;
+		}
+
 	}
 
 }
