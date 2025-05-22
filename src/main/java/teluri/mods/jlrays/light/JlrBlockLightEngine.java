@@ -12,7 +12,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.light.misc.IBlockStateProvider;
 import teluri.mods.jlrays.light.misc.ILightStorage;
 import teluri.mods.jlrays.light.misc.SectionUpdate;
@@ -23,6 +22,7 @@ import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
+import teluri.mods.jlrays.misc.DullBlockPos;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
 import static teluri.mods.jlrays.util.MathHelper.*;
 
@@ -59,7 +59,9 @@ public class JlrBlockLightEngine {
 	 */
 	public void checkBlock(BlockPos pos) {
 		if (!(pos instanceof ShinyBlockPos)) {
-			JustLikeRays.LOGGER.error("checkBlock in destination to the light engine was not provided a ShinyBlockPos");
+			if (!(pos instanceof DullBlockPos)) { // skip error if already caught
+				DullBlockPos.warn();
+			}
 			return;
 		}
 		ShinyBlockPos rpos = (ShinyBlockPos) pos;
