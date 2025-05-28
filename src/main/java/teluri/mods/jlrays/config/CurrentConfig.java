@@ -28,5 +28,12 @@ public class CurrentConfig {
 
 	public int depth = JlrConfig.CONFIG.depth.get();
 
+	public final Supplier<DynamicDataLayer> dataLayerFactory = switch (depth) {
+	// case 0 -> () -> new ByteDataLayer(); //TODO nibble size
+	case 1 -> () -> new ByteDataLayer2();
+	case 2 -> () -> new ShortDataLayer();
+	case 3, 4 -> () -> new IntDataLayer();
+	default -> throw new IllegalArgumentException("Unexpected value: " + depth);
+	};
 
 }
