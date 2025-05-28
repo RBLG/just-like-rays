@@ -4,10 +4,10 @@ import java.util.Arrays;
 
 import org.joml.Math;
 
-import net.minecraft.Util;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.chunk.DataLayer;
 import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.CurrentConfig;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
 /**
@@ -17,15 +17,16 @@ import teluri.mods.jlrays.util.ToneMapperHelper;
  * @author RBLG
  * @since v0.0.1
  */
+@Deprecated
 public class ByteDataLayer extends DataLayer {
 	// size of the array for a light level data size of 8bit
-	public static int BYTE_SIZED = 4096;
+	// public static int BYTE_SIZED = 4096;
 
 	/**
 	 * instantiate empty
 	 */
 	public ByteDataLayer() {
-		super(0);
+		this(0);
 	}
 
 	/**
@@ -43,17 +44,19 @@ public class ByteDataLayer extends DataLayer {
 	 * @param ndata
 	 */
 	public ByteDataLayer(byte[] ndata) {
-		super(0);
-		if (ndata.length == BYTE_SIZED) { // TODO update for config based size
+		this(0);
+		int wantedSize = CurrentConfig.current.dataSize;
+		int receivedSize = ndata.length;
+		if (receivedSize == wantedSize) {
 			this.data = ndata;
 		} else {
-			warnForIncorrectLength(ndata.length);
+			warnForIncorrectSize(wantedSize, receivedSize);
 			this.data = null;
 		}
 	}
 
-	public static void warnForIncorrectLength(int length) {
-		String msg = String.format("ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache", BYTE_SIZED, length);
+	public static void warnForIncorrectSize(int wanted, int length) {
+		String msg = String.format("ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache", wanted, length);
 		JustLikeRays.LOGGER.warn(msg);
 	}
 
@@ -91,7 +94,7 @@ public class ByteDataLayer extends DataLayer {
 	@Override
 	public byte[] getData() {
 		if (this.data == null) {
-			this.data = new byte[BYTE_SIZED];
+			this.data = new byte[CurrentConfig.current.dataSize];
 			if (this.defaultValue != 0) {
 				Arrays.fill(this.data, (byte) this.defaultValue);
 			}
@@ -123,5 +126,4 @@ public class ByteDataLayer extends DataLayer {
 		value += bs[index] & 0xFF; // cast to int as unsigned byte
 		bs[index] = (byte) Math.clamp(value, 0, 255);
 	}
-
 }

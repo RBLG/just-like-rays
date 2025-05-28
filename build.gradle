@@ -25,6 +25,10 @@ repositories {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
     }
+    maven {
+    	name = "FzzyMaven"
+    	url = "https://maven.fzzyhmstrs.me/"
+	}
 }
 
 loom {
@@ -54,6 +58,7 @@ dependencies {
 	//modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
 	//modImplementation "maven.modrinth:sodium:mc1.21.1-0.6.5-fabric"
+	modImplementation "me.fzzyhmstrs:fzzy_config:${project.fzzyConfigVersion}"
 }
 
 processResources {

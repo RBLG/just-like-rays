@@ -10,9 +10,6 @@ import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.config.EmitPropertiesPatch.EmitPropertiesFullPatch;
-import teluri.mods.jlrays.config.IChannelsHandler.ChannelsHandlers;
-import teluri.mods.jlrays.config.ILightLevelSizeHandler.LightLevelSizes;
-import teluri.mods.jlrays.config.ISamplesHandler.SamplesHandlers;
 import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 
 /**
@@ -29,14 +26,6 @@ public class Settings {
 	public static final Settings settings = new Settings();
 
 	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates = new HashMap<>();
-
-	public final LightLevelSizes llsize = LightLevelSizes.BYTE;
-
-	public final int precision = 0;
-
-	public final ChannelsHandlers channels = ChannelsHandlers.MONO;
-
-	public final SamplesHandlers samples = SamplesHandlers.ONE_PER_VOLUME;
 
 	protected boolean late = false;
 
@@ -105,4 +94,12 @@ public class Settings {
 		});
 	}
 
+	//will be valid once all blockstates are initialized (so on world loading should be fine)
+	public float maxEmission = 0;
+
+	public float getMaxEmission() {
+		return maxEmission;
+	}
+	
+	//TODO check between two blockstates to see if they have the same emitprops
 }
