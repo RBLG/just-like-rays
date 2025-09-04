@@ -90,7 +90,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	/**
 	 * add to the stored light level (reduce the amount of operations compared to getting then setting)
 	 */
-	protected void add(int index, int value) {
+	public void add(int index, int value) {
 		initDyn();
 		value += getDyn(index);
 		setDyn(index, value);
