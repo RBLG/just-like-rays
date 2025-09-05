@@ -23,13 +23,10 @@ public class BlockConfig {
 	/**
 	 * Config singleton
 	 */
-	private static BlockConfig settings = new BlockConfig();
+	private static BlockConfig settings = null;
 
 	public static BlockConfig LazyGet() {
-		if (settings == null) {
-			settings = new BlockConfig();
-		}
-		return settings;
+		return settings == null ? (settings = new BlockConfig()) : settings;
 	}
 
 	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates = new HashMap<>();

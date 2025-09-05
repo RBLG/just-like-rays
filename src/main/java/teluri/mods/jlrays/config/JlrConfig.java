@@ -4,13 +4,10 @@ public class JlrConfig {
 	/**
 	 * Config singleton
 	 */
-	private static JlrConfig settings = new JlrConfig();
+	private static JlrConfig settings = null;
 
 	public static JlrConfig LazyGet() {
-		if (settings == null) {
-			settings = new JlrConfig();
-		}
-		return settings;
+		return settings == null ? (settings = new JlrConfig()) : settings;
 	}
 
 	public IDepthHandler depthHandler = IDepthHandler.BYTE;
@@ -21,7 +18,7 @@ public class JlrConfig {
 
 	public final float minimumValue = 0.5f;
 
-	public float getRangeEdgeNumber() { //TODO make getter/setters
+	public float getRangeEdgeNumber() { // TODO make getter/setters
 		return 1 / (minimumValue * distanceRatio);
 	}
 
