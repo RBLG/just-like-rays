@@ -1,8 +1,11 @@
 package teluri.mods.jlrays.config;
 
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.light.ByteDataLayer2;
 import teluri.mods.jlrays.light.DynamicDataLayer;
 import teluri.mods.jlrays.light.IntDataLayer;
+import teluri.mods.jlrays.light.ShortDataLayer;
 
 public interface IDepthHandler {
 	int getNibbleCount();
@@ -16,6 +19,8 @@ public interface IDepthHandler {
 	default int getDataLayerSize() {
 		return getNibbleCount() * 2048;
 	}
+	
+	StreamCodec<ByteBuf, byte[]> getCodec();
 
 	public static final IDepthHandler BYTE = new ByteDataLayer2.ByteDataLayerFactory();
 	public static final IDepthHandler SHORT = new ShortDataLayer.ShortDataLayerFactory();

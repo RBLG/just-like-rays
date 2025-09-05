@@ -62,7 +62,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 
 	@Override
 	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
-		if (data != null && !(data instanceof ByteDataLayer)) {
+		if (data != null && !(data instanceof DynamicDataLayer)) {//TODO update
 			JustLikeRays.LOGGER.warn("block light data layer isnt byte sized");
 		}
 		super.queueSectionData(sectionPos, data);
@@ -120,7 +120,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 		storage.swapSectionMap();
 	}
 
-	public ByteDataLayer getDataLayer(int x, int y, int z) {
+	public DynamicDataLayer getDataLayer(int x, int y, int z) {
 		return storage.getDataLayerForCaching(x, y, z);
 	}
 

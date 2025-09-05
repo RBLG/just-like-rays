@@ -2,6 +2,9 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.config.IDepthHandler;
 
 public class ShortDataLayer extends DynamicDataLayer {
@@ -102,6 +105,13 @@ public class ShortDataLayer extends DynamicDataLayer {
 	}
 
 	public static class ShortDataLayerFactory implements IDepthHandler {
+		private static final StreamCodec<ByteBuf, byte[]> SHORT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(SIZE * 2);
+
+		@Override
+		public StreamCodec<ByteBuf, byte[]> getCodec() {
+			return SHORT_DATA_LAYER_STREAM_CODEC;
+		}
+
 		@Override
 		public DynamicDataLayer createDataLayer() {
 			return new ShortDataLayer();

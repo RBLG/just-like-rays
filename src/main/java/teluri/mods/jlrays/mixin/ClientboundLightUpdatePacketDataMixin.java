@@ -9,7 +9,9 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
+import teluri.mods.jlrays.config.JlrConfig;
 import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.light.DynamicDataLayer;
 
 /**
  * @author RBLG
@@ -18,7 +20,7 @@ import teluri.mods.jlrays.light.ByteDataLayer;
 @Mixin(ClientboundLightUpdatePacketData.class)
 public class ClientboundLightUpdatePacketDataMixin {
 	// custom codec to handle the arrays with the custom size
-	private static final StreamCodec<ByteBuf, byte[]> BLOCK_LIGHT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(ByteDataLayer.BYTE_SIZED);
+	private static final StreamCodec<ByteBuf, byte[]> BLOCK_LIGHT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray();
 
 	/**
 	 * swap vanilla codec with the custom codec
@@ -33,7 +35,7 @@ public class ClientboundLightUpdatePacketDataMixin {
 			) //
 	)
 	public StreamCodec<ByteBuf, byte[]> getBlockLightDataLayerStreamCodec(StreamCodec<ByteBuf, byte[]> prev) {
-		return BLOCK_LIGHT_DATA_LAYER_STREAM_CODEC;
+		return JlrConfig.LazyGet().depthHandler.getCodec();
 	}
 
 }
