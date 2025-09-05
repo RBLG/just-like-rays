@@ -45,11 +45,22 @@ public class JlrBlockLightEngine {
 	protected final IBlockStateProvider blockStateProvider;
 	protected final ILightStorage lightStorage;
 
+	public final float DISTANCE_RATIO;
+	public final float MINIMUM_VALUE;
+	public final float RANGE_EDGE_NUMBER;
+	public final int MAX_RANGE;
+
 	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
 		taskCacheFactory = ntaskCacheFactory;
 		blockStateProvider = nBSProvider;
 		lightStorage = nLightStorage;
+		JlrConfig config = JlrConfig.LazyGet();
+
+		DISTANCE_RATIO = config.distanceRatio;
+		MINIMUM_VALUE = config.minimumValue;
+		RANGE_EDGE_NUMBER = config.getRangeEdgeNumber();
+		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission, RANGE_EDGE_NUMBER);
 	}
 
 	/**
@@ -140,9 +151,9 @@ public class JlrBlockLightEngine {
 	 * searches for light sources visible from the updated block
 	 */
 	protected void evaluateImpactedSources(Vector3i pos) {
-		BlockConfig bconfig = BlockConfig.LazyGet();
-		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
-		int maxRange = JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
+		// BlockConfig bconfig = BlockConfig.LazyGet();
+		// float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
+		int maxRange = MAX_RANGE;// JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
 
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
@@ -157,7 +168,7 @@ public class JlrBlockLightEngine {
 				int sourceemit = blockState.getLightEmission();
 				if (sourceemit != 0) {
 					// check is done as squared to avoid square roots
-					float sourcerange = getRangeSquared(sourceemit, configREN);
+					float sourcerange = getRangeSquared(sourceemit, RANGE_EDGE_NUMBER);// configREN);
 					long dist = source.distanceSquared(pos);
 					if (dist < sourcerange) {
 						syncAddSourceChange(BlockPos.asLong(source.x, source.y, source.z), blockState);
@@ -187,9 +198,9 @@ public class JlrBlockLightEngine {
 	 * iterate over the zone that can be impacted by an update in the SectionUpdate bounds
 	 */
 	protected void groupApproximateImpactedSources(SectionUpdate secupd) {
-		BlockConfig bconfig = BlockConfig.LazyGet();
-		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
-		int maxRange = JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
+		// BlockConfig bconfig = BlockConfig.LazyGet();
+		// float configREN = this.RANGE_EDGE_NUMBER; // JlrConfig.LazyGet().getRangeEdgeNumber();
+		int maxRange = this.MAX_RANGE;// JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
@@ -217,11 +228,11 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		JlrConfig config = JlrConfig.LazyGet();
-		float configREN = config.getRangeEdgeNumber();
+		// JlrConfig config = JlrConfig.LazyGet();
+		float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 
 		if (oldemit != newemit) {
-			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, config.distanceRatio, config.minimumValue);
+			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit), configREN);
@@ -313,14 +324,14 @@ public class JlrBlockLightEngine {
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
-		JlrConfig config = JlrConfig.LazyGet();
-		float configREN = config.getRangeEdgeNumber();
+		// JlrConfig config = JlrConfig.LazyGet();
+		float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
 			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
-			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, config.distanceRatio, config.minimumValue);
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
 			int range = getRange(emit, configREN);
@@ -427,13 +438,12 @@ public class JlrBlockLightEngine {
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */
-	public static void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
+	public void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
 		DynamicDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
 		if (data == null) {
 			return;
 		}
-		JlrConfig config = JlrConfig.LazyGet();
-		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit, config.distanceRatio, config.minimumValue);
+		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
 		if (change != 0) {
 			int lx = SectionPos.sectionRelative(xyz.x);
 			int ly = SectionPos.sectionRelative(xyz.y);
@@ -467,10 +477,18 @@ public class JlrBlockLightEngine {
 		return (int) Math.ceil(Math.sqrt(emit * configREN));
 	}
 
+	public int getRange(float emit) {
+		return (int) Math.ceil(Math.sqrt(emit * this.RANGE_EDGE_NUMBER));
+	}
+
 	/**
 	 * get the square of the max range impacted by a source of given emission intensity
 	 */
 	public static float getRangeSquared(float emit, float configREN) {
 		return emit * configREN;
+	}
+
+	public float getRangeSquared(float emit) {
+		return emit * this.RANGE_EDGE_NUMBER;
 	}
 }
