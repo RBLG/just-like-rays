@@ -7,12 +7,12 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.config.IDepthHandler;
 
-public class ByteDataLayer2 extends DynamicDataLayer {
+public class ByteDataLayer extends DynamicDataLayer {
 
 	/**
 	 * instantiate empty
 	 */
-	public ByteDataLayer2() {
+	public ByteDataLayer() {
 		super();
 	}
 
@@ -21,7 +21,7 @@ public class ByteDataLayer2 extends DynamicDataLayer {
 	 * 
 	 * @param defaultvalue
 	 */
-	public ByteDataLayer2(int defaultvalue) {
+	public ByteDataLayer(int defaultvalue) {
 		super(defaultvalue);
 	}
 
@@ -30,13 +30,13 @@ public class ByteDataLayer2 extends DynamicDataLayer {
 	 * 
 	 * @param ndata
 	 */
-	public ByteDataLayer2(byte[] ndata) {
+	public ByteDataLayer(byte[] ndata) {
 		super(ndata);
 	}
 
 	@Override
-	public ByteDataLayer2 copy() {
-		return this.data == null ? new ByteDataLayer2(this.defaultValue) : new ByteDataLayer2((byte[]) this.data.clone());
+	public ByteDataLayer copy() {
+		return this.data == null ? new ByteDataLayer(this.defaultValue) : new ByteDataLayer((byte[]) this.data.clone());
 	}
 
 	@Override
@@ -82,17 +82,17 @@ public class ByteDataLayer2 extends DynamicDataLayer {
 		}
 		@Override
 		public DynamicDataLayer createDataLayer() {
-			return new ByteDataLayer2();
+			return new ByteDataLayer();
 		}
 
 		@Override
 		public DynamicDataLayer createDataLayer(byte[] data) {
-			return new ByteDataLayer2(data);
+			return new ByteDataLayer(data);
 		}
 
 		@Override
 		public DynamicDataLayer createDataLayer(int defaultval) {
-			return new ByteDataLayer2(defaultval);
+			return new ByteDataLayer(defaultval);
 		}
 
 		@Override
