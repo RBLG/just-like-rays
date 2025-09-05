@@ -23,13 +23,20 @@ public class BlockConfig {
 	/**
 	 * Config singleton
 	 */
-	public static final BlockConfig settings = new BlockConfig();
+	private static BlockConfig settings = new BlockConfig();
+
+	public static BlockConfig LazyGet() {
+		if (settings == null) {
+			settings = new BlockConfig();
+		}
+		return settings;
+	}
 
 	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates = new HashMap<>();
 
 	protected boolean late = false;
 
-	//will be valid once all blockstates are initialized (so on world loading should be fine)
+	// will be valid once all blockstates are initialized (so on world loading should be fine)
 	public float maxEmission = 0;
 
 	public BlockConfig() {
@@ -78,11 +85,11 @@ public class BlockConfig {
 
 	public class Builder {
 		final String[] keys;
-	
+
 		public Builder(String[] nkeys) {
 			keys = nkeys;
 		}
-	
+
 		public void addPatch(Consumer<BlockStateBase> bsmod) {
 			if (late) {
 				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
@@ -91,15 +98,15 @@ public class BlockConfig {
 				blockstates.computeIfAbsent(key, (v) -> new ArrayList<>()).add(bsmod);
 			}
 		}
-	
+
 		public void addBasePatch(EmitPropertiesPatch bsmod) {
 			this.addPatch(bsmod);
 		}
-	
+
 		public void addExtendedPatch(EmitPropertiesFullPatch bsmod) {
 			this.addPatch(bsmod);
 		}
 	}
-	
-	//TODO check between two blockstates to see if they have the same emitprops
+
+	// TODO check between two blockstates to see if they have the same emitprops
 }
