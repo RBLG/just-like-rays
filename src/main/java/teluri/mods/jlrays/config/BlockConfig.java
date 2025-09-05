@@ -21,7 +21,7 @@ import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
  */
 public class BlockConfig {
 	/**
-	 * Settings singleton
+	 * Config singleton
 	 */
 	public static final BlockConfig settings = new BlockConfig();
 
