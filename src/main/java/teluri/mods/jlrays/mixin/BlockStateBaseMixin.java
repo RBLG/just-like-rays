@@ -19,7 +19,7 @@ import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.config.Settings;
+import teluri.mods.jlrays.config.BlockConfig;
 import teluri.mods.jlrays.misc.IHasEmitProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 
@@ -47,8 +47,8 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
-		Settings.settings.notifyInitCache();
-		ArrayList<Consumer<BlockStateBase>> bsmods = Settings.settings.blockstates.get(owner.getDescriptionId());
+		BlockConfig.settings.notifyInitCache();
+		ArrayList<Consumer<BlockStateBase>> bsmods = BlockConfig.settings.blockstates.get(owner.getDescriptionId());
 		if (bsmods != null) {
 			for (Consumer<BlockStateBase> bsmod : bsmods) {
 				try {
@@ -67,7 +67,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 		if (emitprops == null) {
 			emitByDist *= emitprops.emitScale;
 		}
-		Settings.settings.maxEmission = Float.max(Settings.settings.maxEmission, emitByDist);
+		BlockConfig.settings.maxEmission = Float.max(BlockConfig.settings.maxEmission, emitByDist);
 	}
 
 	@Override

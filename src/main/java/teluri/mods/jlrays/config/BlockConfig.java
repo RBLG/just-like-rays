@@ -19,51 +19,21 @@ import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
  * @author RBLG
  * @since v0.2.0
  */
-public class Settings {
+public class BlockConfig {
 	/**
 	 * Settings singleton
 	 */
-	public static final Settings settings = new Settings();
+	public static final BlockConfig settings = new BlockConfig();
 
 	public final HashMap<String, ArrayList<Consumer<BlockStateBase>>> blockstates = new HashMap<>();
 
 	protected boolean late = false;
 
-	public Settings() {
+	//will be valid once all blockstates are initialized (so on world loading should be fine)
+	public float maxEmission = 0;
+
+	public BlockConfig() {
 		addDefaultPatches();
-	}
-
-	public Builder on(String... keys) {
-		return new Builder(keys);
-	}
-
-	public class Builder {
-		final String[] keys;
-
-		public Builder(String[] nkeys) {
-			keys = nkeys;
-		}
-
-		public void addPatch(Consumer<BlockStateBase> bsmod) {
-			if (late) {
-				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
-			}
-			for (String key : keys) {
-				blockstates.computeIfAbsent(key, (v) -> new ArrayList<>()).add(bsmod);
-			}
-		}
-
-		public void addBasePatch(EmitPropertiesPatch bsmod) {
-			this.addPatch(bsmod);
-		}
-
-		public void addExtendedPatch(EmitPropertiesFullPatch bsmod) {
-			this.addPatch(bsmod);
-		}
-	}
-
-	public void notifyInitCache() {
-		late = true;
 	}
 
 	private void addDefaultPatches() {
@@ -94,11 +64,41 @@ public class Settings {
 		});
 	}
 
-	//will be valid once all blockstates are initialized (so on world loading should be fine)
-	public float maxEmission = 0;
-
 	public float getMaxEmission() {
 		return maxEmission;
+	}
+
+	public void notifyInitCache() {
+		late = true;
+	}
+
+	public Builder on(String... keys) {
+		return new Builder(keys);
+	}
+
+	public class Builder {
+		final String[] keys;
+	
+		public Builder(String[] nkeys) {
+			keys = nkeys;
+		}
+	
+		public void addPatch(Consumer<BlockStateBase> bsmod) {
+			if (late) {
+				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
+			}
+			for (String key : keys) {
+				blockstates.computeIfAbsent(key, (v) -> new ArrayList<>()).add(bsmod);
+			}
+		}
+	
+		public void addBasePatch(EmitPropertiesPatch bsmod) {
+			this.addPatch(bsmod);
+		}
+	
+		public void addExtendedPatch(EmitPropertiesFullPatch bsmod) {
+			this.addPatch(bsmod);
+		}
 	}
 	
 	//TODO check between two blockstates to see if they have the same emitprops
