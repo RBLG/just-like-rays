@@ -16,7 +16,7 @@ public abstract class ThreadedLevelLightEngineMixin extends LevelLightEngine imp
 
 	@WrapOperation(method = "checkBlock*", //
 			at = @At(value = "INVOKE", //
-					target = "net/minecraft/core/BlockPos.immutable()Lnet.minecraft.core.BlockPos;"))
+					target = "net/minecraft/core/BlockPos.immutable()Lnet/minecraft/core/BlockPos;"))
 	public BlockPos assertCheckBlock(BlockPos pos, Operation<BlockPos> original) {
 		if (pos instanceof ShinyBlockPos || pos instanceof DullBlockPos) {
 			return original.call(pos);
