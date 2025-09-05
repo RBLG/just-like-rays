@@ -65,7 +65,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 			}
 		}
 		float emitByDist = lightEmission;
-		if (emitprops == null) {
+		if (emitprops != null) {
 			emitByDist *= emitprops.emitScale;
 		}
 		config.maxEmission = Float.max(config.maxEmission, emitByDist);
