@@ -1,8 +1,6 @@
 package teluri.mods.jlrays;
 
 import net.fabricmc.api.ModInitializer;
-import teluri.mods.jlrays.config.JlrConfig;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +17,5 @@ public class JustLikeRays implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		JlrConfig.init();
 	}
 }

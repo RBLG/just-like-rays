@@ -39,6 +39,8 @@ public class BlockConfig {
 	// will be valid once all blockstates are initialized (so on world loading should be fine)
 	public float maxEmission = 0;
 
+	public float maxRange = 15;
+
 	public BlockConfig() {
 		addDefaultPatches();
 	}

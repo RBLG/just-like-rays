@@ -47,8 +47,9 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
-		BlockConfig.settings.notifyInitCache();
-		ArrayList<Consumer<BlockStateBase>> bsmods = BlockConfig.settings.blockstates.get(owner.getDescriptionId());
+		BlockConfig config = BlockConfig.LazyGet();
+		config.notifyInitCache();
+		ArrayList<Consumer<BlockStateBase>> bsmods = config.blockstates.get(owner.getDescriptionId());
 		if (bsmods != null) {
 			for (Consumer<BlockStateBase> bsmod : bsmods) {
 				try {
@@ -67,7 +68,7 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 		if (emitprops == null) {
 			emitByDist *= emitprops.emitScale;
 		}
-		BlockConfig.settings.maxEmission = Float.max(BlockConfig.settings.maxEmission, emitByDist);
+		config.maxEmission = Float.max(config.maxEmission, emitByDist);
 	}
 
 	@Override

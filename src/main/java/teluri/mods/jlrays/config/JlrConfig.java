@@ -1,7 +1,5 @@
 package teluri.mods.jlrays.config;
 
-import teluri.mods.jlrays.config.IDepthHandler.DepthHandlers;
-
 public class JlrConfig {
 	/**
 	 * Config singleton
@@ -14,12 +12,20 @@ public class JlrConfig {
 		}
 		return settings;
 	}
-	
-	public IDepthHandler depthHandler = DepthHandlers.BYTE;
-	
+
+	public IDepthHandler depthHandler = IDepthHandler.BYTE;
+
 	public int precision = 0;
-	
+
+	public float distanceRatio = 0.01f;
+
+	public final float minimumValue = 0.5f;
+
+	public float getRangeEdgeNumber() { //TODO make getter/setters
+		return 1 / (minimumValue * distanceRatio);
+	}
+
 	public JlrConfig() {
-		
+
 	}
 }

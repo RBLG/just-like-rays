@@ -12,7 +12,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import teluri.mods.jlrays.config.CurrentConfig;
+import teluri.mods.jlrays.config.BlockConfig;
+import teluri.mods.jlrays.config.JlrConfig;
 import teluri.mods.jlrays.light.misc.IBlockStateProvider;
 import teluri.mods.jlrays.light.misc.ILightStorage;
 import teluri.mods.jlrays.light.misc.SectionUpdate;
@@ -139,12 +140,15 @@ public class JlrBlockLightEngine {
 	 * searches for light sources visible from the updated block
 	 */
 	protected void evaluateImpactedSources(Vector3i pos) {
+		BlockConfig bconfig = BlockConfig.LazyGet();
+		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
+		int maxRange = JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
 
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
-		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, CurrentConfig.current.maxRange);
+		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, maxRange);
 
-		TaskCache preCache = taskCacheFactory.createWithRange(pos, CurrentConfig.current.maxRange);
+		TaskCache preCache = taskCacheFactory.createWithRange(pos, maxRange);
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can get away with sharing most of the cache, just not the mutpos
 
@@ -153,7 +157,7 @@ public class JlrBlockLightEngine {
 				int sourceemit = blockState.getLightEmission();
 				if (sourceemit != 0) {
 					// check is done as squared to avoid square roots
-					float sourcerange = getRangeSquared(sourceemit);
+					float sourcerange = getRangeSquared(sourceemit, configREN);
 					long dist = source.distanceSquared(pos);
 					if (dist < sourcerange) {
 						syncAddSourceChange(BlockPos.asLong(source.x, source.y, source.z), blockState);
@@ -164,10 +168,10 @@ public class JlrBlockLightEngine {
 
 			IAlphaProvider naprov = taskCache;
 			if (size == 0) {
-				FbGbvSightEngine.traceQuadrant(pos, CurrentConfig.current.maxRange, quadrant, naprov, scons, true); // true== scout
+				FbGbvSightEngine.traceQuadrant(pos, maxRange, quadrant, naprov, scons, true); // true== scout
 			} else {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(pos, CurrentConfig.current.maxRange, quadrant, oaprov, naprov, scons, true);
+				FbGbvSightEngine.traceChangedQuadrant(pos, maxRange, quadrant, oaprov, naprov, scons, true);
 			}
 		});
 	}
@@ -183,7 +187,9 @@ public class JlrBlockLightEngine {
 	 * iterate over the zone that can be impacted by an update in the SectionUpdate bounds
 	 */
 	protected void groupApproximateImpactedSources(SectionUpdate secupd) {
-		int maxRange = CurrentConfig.current.maxRange;
+		BlockConfig bconfig = BlockConfig.LazyGet();
+		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
+		int maxRange = JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
@@ -211,12 +217,13 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
+		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
 
 		if (oldemit != newemit) {
 			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
-		int range = getRange(Math.max(oldemit, newemit));
+		int range = getRange(Math.max(oldemit, newemit), configREN);
 
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
@@ -305,6 +312,7 @@ public class JlrBlockLightEngine {
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
+		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
@@ -313,7 +321,7 @@ public class JlrBlockLightEngine {
 			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
-			int range = getRange(emit);
+			int range = getRange(emit, configREN);
 
 			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
 			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
@@ -427,7 +435,7 @@ public class JlrBlockLightEngine {
 			int lx = SectionPos.sectionRelative(xyz.x);
 			int ly = SectionPos.sectionRelative(xyz.y);
 			int lz = SectionPos.sectionRelative(xyz.z);
-			int index = DynamicDataLayer.getIndex2(lx, ly, lz, 0, 0);
+			int index = DynamicDataLayer.getIndex(lx, ly, lz);
 			data.add(index, change);
 			taskCache.notifyUpdate(xyz.x, xyz.y, xyz.z);
 		}
@@ -437,7 +445,7 @@ public class JlrBlockLightEngine {
 	 * get the light update change value without actually applying it
 	 */
 	public static int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float distinv = 1 / (1 + source.distanceSquared(xyz) * CurrentConfig.current.distanceRatio);
+		float distinv = 1 / (1 + source.distanceSquared(xyz) * JlrConfig.LazyGet().distanceRatio);
 
 		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
 		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
@@ -446,20 +454,20 @@ public class JlrBlockLightEngine {
 	}
 
 	public static int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - CurrentConfig.current.minimumValue), 0, emit);
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - JlrConfig.LazyGet().minimumValue), 0, emit);
 	}
 
 	/**
 	 * get the max range impacted by a source of given emission intensity
 	 */
-	public static int getRange(float emit) {
-		return (int) Math.ceil(Math.sqrt(emit * CurrentConfig.current.rangeEdgeNumber));
+	public static int getRange(float emit, float configREN) {
+		return (int) Math.ceil(Math.sqrt(emit * configREN));
 	}
 
 	/**
 	 * get the square of the max range impacted by a source of given emission intensity
 	 */
-	public static float getRangeSquared(float emit) {
-		return emit * CurrentConfig.current.rangeEdgeNumber;
+	public static float getRangeSquared(float emit, float configREN) {
+		return emit * configREN;
 	}
 }

@@ -56,6 +56,10 @@ public abstract class DynamicDataLayer extends DataLayer {
 		this.set(getIndex(x, y, z), value);
 	}
 
+	public void add(int x, int y, int z, int value) {
+		this.add(getIndex(x, y, z), value);
+	}
+
 	/**
 	 * get light level in the range 0..15
 	 */

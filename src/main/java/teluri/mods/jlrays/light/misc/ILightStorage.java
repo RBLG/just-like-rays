@@ -5,7 +5,6 @@ import java.util.function.BiConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
-import teluri.mods.jlrays.light.ByteDataLayer;
 import teluri.mods.jlrays.light.DynamicDataLayer;
 
 /**

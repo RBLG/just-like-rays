@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.misc.IHasEmitProperties;
-import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 
 /**
  * small trick to avoid boilerplate code in settings
