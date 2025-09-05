@@ -2,7 +2,7 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
-import teluri.mods.jlrays.config.CurrentConfig;
+import teluri.mods.jlrays.config.IDepthHandler;
 
 public class IntDataLayer extends DynamicDataLayer {
 	protected int[] data;
@@ -39,7 +39,7 @@ public class IntDataLayer extends DynamicDataLayer {
 	 */
 	public IntDataLayer(int[] ndata) {
 		this(0);
-		int wantedSize = CurrentConfig.current.dataSize;
+		int wantedSize = SIZE;
 		int receivedSize = ndata.length;
 		if (receivedSize == wantedSize) {
 			data = ndata;
@@ -71,7 +71,7 @@ public class IntDataLayer extends DynamicDataLayer {
 	@Override
 	public void initDyn() {
 		if (data == null) {
-			data = new int[CurrentConfig.current.dataSize];
+			data = new int[SIZE];
 			if (defaultValue != 0) {
 				Arrays.fill(data, defaultValue);
 			}
@@ -80,7 +80,7 @@ public class IntDataLayer extends DynamicDataLayer {
 
 	@Override
 	public byte[] getData2() {
-		byte[] rtn = new byte[CurrentConfig.current.dataSize * 4];
+		byte[] rtn = new byte[SIZE * 4];
 		int itr = 0;
 		for (int bytes4 : data) {
 			rtn[itr + 0] = (byte) (bytes4);
@@ -94,7 +94,7 @@ public class IntDataLayer extends DynamicDataLayer {
 
 	@Override
 	protected void initDyn(byte[] ndata) {
-		data = new int[CurrentConfig.current.dataSize];
+		data = new int[SIZE];
 		for (int itr = 0; itr < data.length; itr++) {
 			int itr2 = itr * 4;
 			int b0 = ndata[itr2 + 0] & 0xFF;
@@ -103,6 +103,33 @@ public class IntDataLayer extends DynamicDataLayer {
 			int b3 = ndata[itr2 + 3] & 0xFF;
 			data[itr] = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 		}
+	}
+
+	public static class IntDataLayerFactory implements IDepthHandler {
+		@Override
+		public DynamicDataLayer createDataLayer() {
+			return new IntDataLayer();
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(byte[] data) {
+			return new IntDataLayer(data);
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(int defaultval) {
+			return new IntDataLayer(defaultval);
+		}
+
+		@Override
+		public int getNibbleCount() {
+			return 8;
+		}
+	}
+
+	@Override
+	protected int getNibbleCount() {
+		return 8;
 	}
 
 }

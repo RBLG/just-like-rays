@@ -1,6 +1,6 @@
 package teluri.mods.jlrays.config;
 
-import teluri.mods.jlrays.config.ILightLevelSizeHandler.LightLevelSizes;
+import teluri.mods.jlrays.config.IDepthHandler.DepthHandlers;
 
 public class JlrConfig {
 	/**
@@ -15,7 +15,7 @@ public class JlrConfig {
 		return settings;
 	}
 	
-	public ILightLevelSizeHandler depthHandler = LightLevelSizes.BYTE;
+	public IDepthHandler depthHandler = DepthHandlers.BYTE;
 	
 	public int precision = 0;
 	

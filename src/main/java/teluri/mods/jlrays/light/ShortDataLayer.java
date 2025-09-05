@@ -2,7 +2,7 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
-import teluri.mods.jlrays.config.CurrentConfig;
+import teluri.mods.jlrays.config.IDepthHandler;
 
 public class ShortDataLayer extends DynamicDataLayer {
 	protected short[] data;
@@ -39,7 +39,7 @@ public class ShortDataLayer extends DynamicDataLayer {
 	 */
 	public ShortDataLayer(short[] ndata) {
 		this(0);
-		int wantedSize = CurrentConfig.current.dataSize;
+		int wantedSize = SIZE;
 		int receivedSize = ndata.length;
 		if (receivedSize == wantedSize) {
 			data = ndata;
@@ -71,7 +71,7 @@ public class ShortDataLayer extends DynamicDataLayer {
 	@Override
 	public void initDyn() {
 		if (data == null) {
-			data = new short[CurrentConfig.current.dataSize];
+			data = new short[SIZE];
 			if (defaultValue != 0) {
 				Arrays.fill(data, (short) defaultValue);
 			}
@@ -80,7 +80,7 @@ public class ShortDataLayer extends DynamicDataLayer {
 
 	@Override
 	public byte[] getData2() {
-		byte[] rtn = new byte[CurrentConfig.current.dataSize * 2];
+		byte[] rtn = new byte[SIZE * 2];
 		int itr = 0;
 		for (short bytes2 : data) {
 			rtn[itr + 0] = (byte) (bytes2);
@@ -92,13 +92,40 @@ public class ShortDataLayer extends DynamicDataLayer {
 
 	@Override
 	protected void initDyn(byte[] ndata) {
-		data = new short[CurrentConfig.current.dataSize];
+		data = new short[SIZE];
 		for (int itr = 0; itr < data.length; itr++) {
 			int itr2 = itr * 2;
 			int b0 = ndata[itr2 + 0] & 0xFF;
 			int b1 = ndata[itr2 + 1] & 0xFF;
 			data[itr] = (short) (b0 | (b1 << 8));
 		}
+	}
+
+	public static class ShortDataLayerFactory implements IDepthHandler {
+		@Override
+		public DynamicDataLayer createDataLayer() {
+			return new ShortDataLayer();
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(byte[] data) {
+			return new ShortDataLayer(data);
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(int defaultval) {
+			return new ShortDataLayer(defaultval);
+		}
+
+		@Override
+		public int getNibbleCount() {
+			return 4;
+		}
+	}
+
+	@Override
+	protected int getNibbleCount() {
+		return 4;
 	}
 
 }

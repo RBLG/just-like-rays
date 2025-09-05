@@ -2,10 +2,15 @@ package teluri.mods.jlrays.light;
 
 import net.minecraft.world.level.chunk.DataLayer;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.config.CurrentConfig;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
 public abstract class DynamicDataLayer extends DataLayer {
+	/**
+	 * size of a chunk
+	 */
+	public static final int SIZE = 4096;
+	public static final int HALF_SIZE = 2048;
+
 	/**
 	 * instantiate empty
 	 */
@@ -29,7 +34,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public DynamicDataLayer(byte[] ndata) {
 		this(0);
-		int wantedSize = CurrentConfig.current.dataSize * CurrentConfig.current.depth; // TODO will break if nibble sized=0
+		int wantedSize = HALF_SIZE * this.getNibbleCount();
 		int receivedSize = ndata.length;
 		if (receivedSize == wantedSize) {
 			initDyn(ndata);
@@ -44,11 +49,11 @@ public abstract class DynamicDataLayer extends DataLayer {
 	}
 
 	public int get(int x, int y, int z) {
-		return this.get(getIndex2(x, y, z, 0, 0));
+		return this.get(getIndex(x, y, z));
 	}
 
 	public void set(int x, int y, int z, int value) {
-		this.set(getIndex2(x, y, z, 0, 0), value); // TODO handle conversion
+		this.set(getIndex(x, y, z), value);
 	}
 
 	/**
@@ -59,8 +64,8 @@ public abstract class DynamicDataLayer extends DataLayer {
 		return isEmptyDyn() ? defaultValue : ToneMapperHelper.clamp(getFull(index));
 	}
 
-	public int getFull(int x, int y, int z, int sample, int channel) {
-		return getFull(getIndex2(x, y, z, sample, channel));
+	public int getFull(int x, int y, int z) {
+		return getFull(getIndex(x, y, z));
 	}
 
 	/**
@@ -97,14 +102,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	}
 
 	public static int getIndex(int x, int y, int z) {
-		int ods = CurrentConfig.current.oneDataSize;
-		return (DataLayer.getIndex(x, y, z)) * ods;
-	}
-
-	public static int getIndex2(int x, int y, int z, int sample, int channel) {
-		int ods = CurrentConfig.current.oneDataSize;
-		int cc = CurrentConfig.current.channelCount;
-		return (DataLayer.getIndex(x, y, z)) * ods + sample * cc + channel;
+		return DataLayer.getIndex(x, y, z);
 	}
 
 	public abstract int getDyn(int index);
@@ -116,4 +114,6 @@ public abstract class DynamicDataLayer extends DataLayer {
 	public abstract void initDyn();
 
 	protected abstract void initDyn(byte[] ndata);
+
+	protected abstract int getNibbleCount();
 }

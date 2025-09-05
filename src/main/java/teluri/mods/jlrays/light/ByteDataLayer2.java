@@ -2,7 +2,7 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
-import teluri.mods.jlrays.config.CurrentConfig;
+import teluri.mods.jlrays.config.IDepthHandler;
 
 public class ByteDataLayer2 extends DynamicDataLayer {
 
@@ -54,7 +54,7 @@ public class ByteDataLayer2 extends DynamicDataLayer {
 	@Override
 	public void initDyn() {
 		if (data == null) {
-			data = new byte[CurrentConfig.current.dataSize];
+			data = new byte[SIZE];
 			if (defaultValue != 0) {
 				Arrays.fill(data, (byte) defaultValue);
 			}
@@ -71,4 +71,30 @@ public class ByteDataLayer2 extends DynamicDataLayer {
 		data = ndata;
 	}
 
+	public static class ByteDataLayerFactory implements IDepthHandler {
+		@Override
+		public DynamicDataLayer createDataLayer() {
+			return new ByteDataLayer2();
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(byte[] data) {
+			return new ByteDataLayer2(data);
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(int defaultval) {
+			return new ByteDataLayer2(defaultval);
+		}
+
+		@Override
+		public int getNibbleCount() {
+			return 2;
+		}
+	}
+
+	@Override
+	protected int getNibbleCount() {
+		return 2;
+	}
 }
