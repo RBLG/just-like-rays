@@ -217,10 +217,11 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
+		JlrConfig config = JlrConfig.LazyGet();
+		float configREN = config.getRangeEdgeNumber();
 
 		if (oldemit != newemit) {
-			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
+			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, config.distanceRatio, config.minimumValue);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit), configREN);
@@ -312,13 +313,14 @@ public class JlrBlockLightEngine {
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
-		float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
+		JlrConfig config = JlrConfig.LazyGet();
+		float configREN = config.getRangeEdgeNumber();
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
 			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
-			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, config.distanceRatio, config.minimumValue);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
 			int range = getRange(emit, configREN);
@@ -430,7 +432,8 @@ public class JlrBlockLightEngine {
 		if (data == null) {
 			return;
 		}
-		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit);
+		JlrConfig config = JlrConfig.LazyGet();
+		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit, config.distanceRatio, config.minimumValue);
 		if (change != 0) {
 			int lx = SectionPos.sectionRelative(xyz.x);
 			int ly = SectionPos.sectionRelative(xyz.y);
@@ -444,17 +447,17 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the light update change value without actually applying it
 	 */
-	public static int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float distinv = 1 / (1 + source.distanceSquared(xyz) * JlrConfig.LazyGet().distanceRatio);
+	public static int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, float configDR, float configMV) {
+		float distinv = 1 / (1 + source.distanceSquared(xyz) * configDR);
 
-		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
-		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
+		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit, configMV);
+		int newlevel = calculateLightLevel(nvisi, distinv, newemit, configMV);
 
 		return -oldlevel + newlevel;
 	}
 
-	public static int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - JlrConfig.LazyGet().minimumValue), 0, emit);
+	public static int calculateLightLevel(float visi, float distinv, int emit, float configMV) {
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - configMV), 0, emit);
 	}
 
 	/**
