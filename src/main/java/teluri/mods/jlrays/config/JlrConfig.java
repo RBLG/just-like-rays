@@ -14,7 +14,7 @@ public class JlrConfig {
 
 	public int precision = 0;
 
-	public float distanceRatio = 0.01f;
+	public float distanceRatio = 0.1f;
 
 	public final float minimumValue = 0.5f;
 

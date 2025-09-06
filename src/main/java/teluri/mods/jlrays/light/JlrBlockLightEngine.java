@@ -229,13 +229,13 @@ public class JlrBlockLightEngine {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
 		// JlrConfig config = JlrConfig.LazyGet();
-		float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
+		// float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 
 		if (oldemit != newemit) {
 			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
-		int range = getRange(Math.max(oldemit, newemit), configREN);
+		int range = getRange(Math.max(oldemit, newemit));
 
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
@@ -325,7 +325,7 @@ public class JlrBlockLightEngine {
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
 		// JlrConfig config = JlrConfig.LazyGet();
-		float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
+		// float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
@@ -334,7 +334,7 @@ public class JlrBlockLightEngine {
 			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
-			int range = getRange(emit, configREN);
+			int range = getRange(emit);
 
 			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
 			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
