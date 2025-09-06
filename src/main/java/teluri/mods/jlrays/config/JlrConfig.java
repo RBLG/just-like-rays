@@ -19,7 +19,7 @@ public class JlrConfig {
 	public final float minimumValue = 0.5f;
 
 	public float getRangeEdgeNumber() { // TODO make getter/setters
-		return 1 / (minimumValue * distanceRatio);
+		return 1 / (minimumValue * distanceRatio * (1 << precision));
 	}
 
 	public JlrConfig() {
