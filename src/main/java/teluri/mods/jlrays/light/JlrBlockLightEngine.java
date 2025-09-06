@@ -49,6 +49,7 @@ public class JlrBlockLightEngine {
 	public final float MINIMUM_VALUE;
 	public final float RANGE_EDGE_NUMBER;
 	public final int MAX_RANGE;
+	public final float PRECISION_MULTIPLIER;
 
 	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
@@ -61,6 +62,7 @@ public class JlrBlockLightEngine {
 		MINIMUM_VALUE = config.minimumValue;
 		RANGE_EDGE_NUMBER = config.getRangeEdgeNumber();
 		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission, RANGE_EDGE_NUMBER);
+		PRECISION_MULTIPLIER = 1 << config.precision;
 	}
 
 	/**
@@ -458,7 +460,7 @@ public class JlrBlockLightEngine {
 	}
 
 	public int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - MINIMUM_VALUE), 0, emit);
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit * PRECISION_MULTIPLIER - MINIMUM_VALUE), 0, emit);
 	}
 
 	/**

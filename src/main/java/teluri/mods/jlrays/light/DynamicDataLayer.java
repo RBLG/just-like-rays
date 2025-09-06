@@ -2,6 +2,7 @@ package teluri.mods.jlrays.light;
 
 import net.minecraft.world.level.chunk.DataLayer;
 import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.JlrConfig;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
 public abstract class DynamicDataLayer extends DataLayer {
@@ -10,6 +11,8 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public static final int SIZE = 4096;
 	public static final int HALF_SIZE = 2048;
+
+	public final int precision;
 
 	/**
 	 * instantiate empty
@@ -25,6 +28,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public DynamicDataLayer(int defaultvalue) {
 		super(defaultvalue);
+		this.precision = JlrConfig.LazyGet().precision;
 	}
 
 	/**
@@ -76,7 +80,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 * get light level in the full range (0..255)
 	 */
 	public int getFull(int index) {
-		return isEmptyDyn() ? defaultValue : getDyn(index);
+		return isEmptyDyn() ? defaultValue : getDyn(index) >> this.precision;
 	}
 
 	@Override
