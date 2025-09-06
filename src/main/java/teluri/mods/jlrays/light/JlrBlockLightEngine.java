@@ -151,15 +151,11 @@ public class JlrBlockLightEngine {
 	 * searches for light sources visible from the updated block
 	 */
 	protected void evaluateImpactedSources(Vector3i pos) {
-		// BlockConfig bconfig = BlockConfig.LazyGet();
-		// float configREN = JlrConfig.LazyGet().getRangeEdgeNumber();
-		int maxRange = MAX_RANGE;// JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
-
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
-		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, maxRange);
+		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
 
-		TaskCache preCache = taskCacheFactory.createWithRange(pos, maxRange);
+		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can get away with sharing most of the cache, just not the mutpos
 
@@ -179,10 +175,10 @@ public class JlrBlockLightEngine {
 
 			IAlphaProvider naprov = taskCache;
 			if (size == 0) {
-				FbGbvSightEngine.traceQuadrant(pos, maxRange, quadrant, naprov, scons, true); // true== scout
+				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
 			} else {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(pos, maxRange, quadrant, oaprov, naprov, scons, true);
+				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
 			}
 		});
 	}
@@ -198,14 +194,11 @@ public class JlrBlockLightEngine {
 	 * iterate over the zone that can be impacted by an update in the SectionUpdate bounds
 	 */
 	protected void groupApproximateImpactedSources(SectionUpdate secupd) {
-		// BlockConfig bconfig = BlockConfig.LazyGet();
-		// float configREN = this.RANGE_EDGE_NUMBER; // JlrConfig.LazyGet().getRangeEdgeNumber();
-		int maxRange = this.MAX_RANGE;// JlrBlockLightEngine.getRange(bconfig.maxEmission, configREN);
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
-		int sx1 = secupd.x1 - maxRange, sy1 = secupd.y1 - maxRange, sz1 = secupd.z1 - maxRange;
-		int sx2 = secupd.x2 + maxRange, sy2 = secupd.y2 + maxRange, sz2 = secupd.z2 + maxRange;
+		int sx1 = secupd.x1 - MAX_RANGE, sy1 = secupd.y1 - MAX_RANGE, sz1 = secupd.z1 - MAX_RANGE;
+		int sx2 = secupd.x2 + MAX_RANGE, sy2 = secupd.y2 + MAX_RANGE, sz2 = secupd.z2 + MAX_RANGE;
 
 		TaskCache taskCache = taskCacheFactory.create(sx1, sy1, sz1, sx2, sy2, sz2);
 		for (int itx = sx1; itx < sx2; itx++) {
@@ -228,11 +221,9 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		// JlrConfig config = JlrConfig.LazyGet();
-		// float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 
 		if (oldemit != newemit) {
-			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
+			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -331,7 +322,7 @@ public class JlrBlockLightEngine {
 			int emit = blockState.getLightEmission();
 			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
-			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
 			int range = getRange(emit);
@@ -443,7 +434,7 @@ public class JlrBlockLightEngine {
 		if (data == null) {
 			return;
 		}
-		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit, this.DISTANCE_RATIO, this.MINIMUM_VALUE);
+		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit);
 		if (change != 0) {
 			int lx = SectionPos.sectionRelative(xyz.x);
 			int ly = SectionPos.sectionRelative(xyz.y);
@@ -457,17 +448,17 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the light update change value without actually applying it
 	 */
-	public static int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, float configDR, float configMV) {
-		float distinv = 1 / (1 + source.distanceSquared(xyz) * configDR);
+	public int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
+		float distinv = 1 / (1 + source.distanceSquared(xyz) * DISTANCE_RATIO);
 
-		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit, configMV);
-		int newlevel = calculateLightLevel(nvisi, distinv, newemit, configMV);
+		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
+		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
 
 		return -oldlevel + newlevel;
 	}
 
-	public static int calculateLightLevel(float visi, float distinv, int emit, float configMV) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - configMV), 0, emit);
+	public int calculateLightLevel(float visi, float distinv, int emit) {
+		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - MINIMUM_VALUE), 0, emit);
 	}
 
 	/**
@@ -478,7 +469,7 @@ public class JlrBlockLightEngine {
 	}
 
 	public int getRange(float emit) {
-		return (int) Math.ceil(Math.sqrt(emit * this.RANGE_EDGE_NUMBER));
+		return (int) Math.ceil(Math.sqrt(emit * RANGE_EDGE_NUMBER));
 	}
 
 	/**
@@ -489,6 +480,6 @@ public class JlrBlockLightEngine {
 	}
 
 	public float getRangeSquared(float emit) {
-		return emit * this.RANGE_EDGE_NUMBER;
+		return emit * RANGE_EDGE_NUMBER;
 	}
 }
