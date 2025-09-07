@@ -10,17 +10,13 @@ public class JlrConfig {
 		return settings == null ? (settings = new JlrConfig()) : settings;
 	}
 
-	public IDepthHandler depthHandler = IDepthHandler.BYTE;
+	public IDepthHandler depthHandler = IDepthHandler.SHORT;
 
-	public int precision = 0;
+	public int precision = 7;
 
 	public float distanceRatio = 0.1f;
 
-	public final float minimumValue = 0.5f;
-
-	public float getRangeEdgeNumber() { // TODO make getter/setters
-		return 1 / (minimumValue * distanceRatio * (1 << precision));
-	}
+	public final float minimumValue = 0.25f;
 
 	public JlrConfig() {
 

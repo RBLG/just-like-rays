@@ -46,10 +46,10 @@ public class JlrBlockLightEngine {
 	protected final ILightStorage lightStorage;
 
 	public final float DISTANCE_RATIO;
-	public final float MINIMUM_VALUE;
+	public final float CORRECTED_MINIMUM_VALUE;
 	public final float RANGE_EDGE_NUMBER;
 	public final int MAX_RANGE;
-	public final float PRECISION_MULTIPLIER;
+	public final int PRECISION_MULTIPLIER;
 
 	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
@@ -59,10 +59,10 @@ public class JlrBlockLightEngine {
 		JlrConfig config = JlrConfig.LazyGet();
 
 		DISTANCE_RATIO = config.distanceRatio;
-		MINIMUM_VALUE = config.minimumValue;
-		RANGE_EDGE_NUMBER = config.getRangeEdgeNumber();
-		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission, RANGE_EDGE_NUMBER);
+		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission);
 		PRECISION_MULTIPLIER = 1 << config.precision;
+		CORRECTED_MINIMUM_VALUE = config.minimumValue * PRECISION_MULTIPLIER;
+		RANGE_EDGE_NUMBER = 1 / (CORRECTED_MINIMUM_VALUE * DISTANCE_RATIO);
 	}
 
 	/**
@@ -166,7 +166,7 @@ public class JlrBlockLightEngine {
 				int sourceemit = blockState.getLightEmission();
 				if (sourceemit != 0) {
 					// check is done as squared to avoid square roots
-					float sourcerange = getRangeSquared(sourceemit, RANGE_EDGE_NUMBER);// configREN);
+					float sourcerange = getRangeSquared(sourceemit);
 					long dist = source.distanceSquared(pos);
 					if (dist < sourcerange) {
 						syncAddSourceChange(BlockPos.asLong(source.x, source.y, source.z), blockState);
@@ -317,8 +317,6 @@ public class JlrBlockLightEngine {
 	 */
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
-		// JlrConfig config = JlrConfig.LazyGet();
-		// float configREN = this.RANGE_EDGE_NUMBER;// config.getRangeEdgeNumber();
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
@@ -460,28 +458,21 @@ public class JlrBlockLightEngine {
 	}
 
 	public int calculateLightLevel(float visi, float distinv, int emit) {
-		return visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit * PRECISION_MULTIPLIER - MINIMUM_VALUE), 0, emit);
+		emit *= PRECISION_MULTIPLIER;
+		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - CORRECTED_MINIMUM_VALUE), 0, emit);
 	}
 
 	/**
 	 * get the max range impacted by a source of given emission intensity
 	 */
-	public static int getRange(float emit, float configREN) {
-		return (int) Math.ceil(Math.sqrt(emit * configREN));
-	}
-
 	public int getRange(float emit) {
-		return (int) Math.ceil(Math.sqrt(emit * RANGE_EDGE_NUMBER));
+		return (int) Math.ceil(Math.sqrt(getRangeSquared(emit)));
 	}
 
 	/**
 	 * get the square of the max range impacted by a source of given emission intensity
 	 */
-	public static float getRangeSquared(float emit, float configREN) {
-		return emit * configREN;
-	}
-
 	public float getRangeSquared(float emit) {
-		return emit * RANGE_EDGE_NUMBER;
+		return (emit * PRECISION_MULTIPLIER - CORRECTED_MINIMUM_VALUE) * RANGE_EDGE_NUMBER;
 	}
 }
