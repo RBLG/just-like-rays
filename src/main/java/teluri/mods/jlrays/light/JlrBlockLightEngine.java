@@ -25,6 +25,8 @@ import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.misc.DullBlockPos;
+import teluri.mods.jlrays.misc.IHasEmitProperties;
+import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
 import static teluri.mods.jlrays.util.MathHelper.*;
 
@@ -177,10 +179,10 @@ public class JlrBlockLightEngine {
 
 			IAlphaProvider naprov = taskCache;
 			if (size == 0) {
-				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
+				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true, EmitProperties.DEFAULT); // true== scout
 			} else {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
+				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true, EmitProperties.DEFAULT, EmitProperties.DEFAULT);
 			}
 		});
 	}
@@ -223,6 +225,8 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
+		EmitProperties oldprop = ((IHasEmitProperties) oldbs).getEmitPropertiesNullable();
+		EmitProperties newprop = ((IHasEmitProperties) newbs).getEmitPropertiesNullable();
 
 		if (oldemit != newemit) {
 			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
@@ -240,12 +244,15 @@ public class JlrBlockLightEngine {
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = taskCache;
 
-			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
+			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant)) || (oldprop != null && newprop != null)) {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+				EmitProperties oldprop2 = oldprop != null ? oldprop : EmitProperties.DEFAULT;
+				EmitProperties newprop2 = newprop != null ? newprop : EmitProperties.DEFAULT;
+				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false, oldprop2, newprop2);
 			} else if (oldemit != newemit) {
+				EmitProperties prop = oldprop != null ? oldprop : newprop != null ? newprop : EmitProperties.DEFAULT;
 				// if no updates are around, its always an emit change, unless it was a bad approximation
-				FbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false, prop);
 			}
 		});
 		preCache.applyAffectedCache();
@@ -319,6 +326,7 @@ public class JlrBlockLightEngine {
 		lightStorage.setLightEnabled(chunkPos, true);
 		// TODO find a way to init TaskCache properly with chunkPos
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
+			EmitProperties prop = ((IHasEmitProperties) blockState).getEmitProperties();
 			int emit = blockState.getLightEmission();
 			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
@@ -333,7 +341,7 @@ public class JlrBlockLightEngine {
 
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
 				IAlphaProvider naprov = taskCache;
-				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false, prop);
 			});
 			preCache.applyAffectedCache();
 		});

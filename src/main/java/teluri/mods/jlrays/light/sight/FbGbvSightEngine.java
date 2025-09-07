@@ -1,10 +1,12 @@
 package teluri.mods.jlrays.light.sight;
 
+import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
+import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import static java.lang.Math.*;
 import java.util.function.Consumer;
@@ -86,11 +88,27 @@ public class FbGbvSightEngine {
 	 * @param aprov  alpha provider
 	 * @param scons  sight consumer (output)
 	 */
-	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout) {
+	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout, EmitProperties eprop) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
 		AlphaHolder ahol = new AlphaHolder();
+		Vector3f offset = eprop.offset;
+		Vector3f radius = eprop.radius;
+		final Vector3f tmp = new Vector3f();
+		tmp.set(offset).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float ofs1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(offset).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float ofs2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(offset).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float ofs3 = tmp.x + tmp.y + tmp.z;
+		tmp.set(radius).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float rad1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(radius).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float rad2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(radius).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float rad3 = tmp.x + tmp.y + tmp.z;
+
 		range = max(1, range); // 1 is the minimal possible range
 		int size = range + 2;
 
@@ -139,21 +157,25 @@ public class FbGbvSightEngine {
 					face2 *= alpha.f2;
 					face3 *= alpha.f3;
 
+					float citr1 = itr1 == 0 ? 0 : itr1 + ofs1;
+					float citr2 = itr2 == 0 ? 0 : itr2 + ofs2;
+					float citr3 = itr3 == 0 ? 0 : itr3 + ofs3;
+
 					// output the sight unless its an edge without the priority and therefore skip to avoid duplicated edges output
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							scons.consume(xyz, 1, 1);
 						} else if (alpha.block != 0) {
-							float voxelvisi = facesToVolumeValue(face1, itr1, face2, itr2, face3, itr3);
+							float voxelvisi = facesToVolumeValue(face1, citr1, face2, citr2, face3, citr3);
 							scons.consume(xyz, voxelvisi, voxelvisi);
 						}
 					}
 					// weights are similar to 18 neigbors 3d classic gbv, aka it1, it2 and it3 except for those 3
-					float f4w1 = max(0, itr1 - max(itr2, itr3) + UNPOINTLIGHT_FIX); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
-					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
-					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
+					float f4w1 = max(0, citr1 - max(citr2, citr3) + rad1); // weight 1 for face 4. reach 0 when either it2 or it3 reach it1
+					float f5w2 = max(0, citr2 - max(citr1, citr3) + rad2); // weight 2 for face 5
+					float f6w3 = max(0, citr3 - max(citr1, citr2) + rad3); // weight 3 for face 6
 
-					applyFaces456(vbuffer, alpha, index, size, face1, face2, face3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
+					applyFaces456(vbuffer, alpha, index, size, face1, face2, face3, citr1, citr2, citr3, f4w1, f5w2, f6w3);
 				}
 				lRowVis[itr2 + 1] = rowVis;
 			}
@@ -162,15 +184,15 @@ public class FbGbvSightEngine {
 	}
 
 	private static void applyFaces456(float[] vbuffer, AlphaHolder alpha, int index, int size, //
-			float face1, float face2, float face3, //
-			int itr1, int itr2, int itr3, //
+			float fac1, float fac2, float fac3, //
+			float itr1, float itr2, float itr3, //
 			float f4w1, float f5w2, float f6w3 //
 	) {
 		float face4 = 0, face5 = 0, face6 = 0;
 		if (alpha.block != 0) {
-			face4 = interpolate(face1, f4w1, face2, itr2, face3, itr3) * alpha.f4;
-			face5 = interpolate(face1, itr1, face2, f5w2, face3, itr3) * alpha.f5;
-			face6 = interpolate(face1, itr1, face2, itr2, face3, f6w3) * alpha.f6;
+			face4 = interpolate(fac1, f4w1, fac2, itr2, fac3, itr3) * alpha.f4;
+			face5 = interpolate(fac1, itr1, fac2, f5w2, fac3, itr3) * alpha.f5;
+			face6 = interpolate(fac1, itr1, fac2, itr2, fac3, f6w3) * alpha.f6;
 		}
 
 		// write the results to the non exposed faces of this voxel (which are also the exposed faces of later processed voxels)
@@ -190,12 +212,44 @@ public class FbGbvSightEngine {
 	 * @param naprov new visibility provider
 	 * @param sucons sight consumer
 	 */
-	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout) {
+	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout,
+			EmitProperties oeprop, EmitProperties neprop) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
 		AlphaHolder oahol = new AlphaHolder();
 		AlphaHolder nahol = new AlphaHolder();
+		Vector3f ooffset = oeprop.offset;
+		Vector3f oradius = oeprop.radius;
+		final Vector3f tmp = new Vector3f();
+		tmp.set(ooffset).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float oofs1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(ooffset).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float oofs2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(ooffset).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float oofs3 = tmp.x + tmp.y + tmp.z;
+		tmp.set(oradius).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float orad1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(oradius).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float orad2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(oradius).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float orad3 = tmp.x + tmp.y + tmp.z;
+
+		Vector3f noffset = neprop.offset;
+		Vector3f nradius = neprop.radius;
+		tmp.set(noffset).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float nofs1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(noffset).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float nofs2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(noffset).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float nofs3 = tmp.x + tmp.y + tmp.z;
+		tmp.set(nradius).mul(quadr.axis1.x, quadr.axis1.y, quadr.axis1.z);
+		float nrad1 = tmp.x + tmp.y + tmp.z;
+		tmp.set(nradius).mul(quadr.axis2.x, quadr.axis2.y, quadr.axis2.z);
+		float nrad2 = tmp.x + tmp.y + tmp.z;
+		tmp.set(nradius).mul(quadr.axis3.x, quadr.axis3.y, quadr.axis3.z);
+		float nrad3 = tmp.x + tmp.y + tmp.z;
+
 		range = max(1, range);
 
 		int size = range + 2;
@@ -253,25 +307,36 @@ public class FbGbvSightEngine {
 						rowVis = itr3;
 					}
 
+					float ocitr1 = itr1 == 0 ? 0 : itr1 + oofs1;
+					float ocitr2 = itr2 == 0 ? 0 : itr2 + oofs2;
+					float ocitr3 = itr3 == 0 ? 0 : itr3 + oofs3;
+
+					float ncitr1 = itr1 == 0 ? 0 : itr1 + nofs1;
+					float ncitr2 = itr2 == 0 ? 0 : itr2 + nofs2;
+					float ncitr3 = itr3 == 0 ? 0 : itr3 + nofs3;
+
 					// avoid duplicated edges
 					if (isNotDuplicatedEdge(quadr, itr1, itr2, itr3)) {
 						if (scout) {
 							sucons.consume(xyz, 1, 1);
 						} else if (oahol.block != 0 || nahol.block != 0) {
-							float ovoxelvisi = facesToVolumeValue(oface1, itr1, oface2, itr2, oface3, itr3);
-							float nvoxelvisi = facesToVolumeValue(nface1, itr1, nface2, itr2, nface3, itr3);
+							float ovoxelvisi = facesToVolumeValue(oface1, ocitr1, oface2, ocitr2, oface3, ocitr3);
+							float nvoxelvisi = facesToVolumeValue(nface1, ncitr1, nface2, ncitr2, nface3, ncitr3);
 							sucons.consume(xyz, ovoxelvisi, nvoxelvisi);
 						}
 					}
 
 					// weights are it1, it2 and it3 except for those 3
+					float f4w1, f5w2, f6w3;
+					f4w1 = max(0, ocitr1 - max(ocitr2, ocitr3) + orad1); // weight 1 for face 4
+					f5w2 = max(0, ocitr2 - max(ocitr1, ocitr3) + orad2); // weight 2 for face 5
+					f6w3 = max(0, ocitr3 - max(ocitr1, ocitr2) + orad3); // weight 3 for face 6
+					applyFaces456(ovbuffer, oahol, index, size, oface1, oface2, oface3, ocitr1, ocitr2, ocitr3, f4w1, f5w2, f6w3);
 
-					float f4w1 = max(0, itr1 - max(itr2, itr3) + UNPOINTLIGHT_FIX); // weight 1 for face 4
-					float f5w2 = max(0, itr2 - max(itr1, itr3) + UNPOINTLIGHT_FIX); // weight 2 for face 5
-					float f6w3 = max(0, itr3 - max(itr1, itr2) + UNPOINTLIGHT_FIX); // weight 3 for face 6
-
-					applyFaces456(ovbuffer, oahol, index, size, oface1, oface2, oface3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
-					applyFaces456(nvbuffer, nahol, index, size, nface1, nface2, nface3, itr1, itr2, itr3, f4w1, f5w2, f6w3);
+					f4w1 = max(0, ncitr1 - max(ncitr2, ncitr3) + nrad1); // weight 1 for face 4
+					f5w2 = max(0, ncitr2 - max(ncitr1, ncitr3) + nrad2); // weight 2 for face 5
+					f6w3 = max(0, ncitr3 - max(ncitr1, ncitr2) + nrad3); // weight 3 for face 6
+					applyFaces456(nvbuffer, nahol, index, size, nface1, nface2, nface3, ncitr1, ncitr2, ncitr3, f4w1, f5w2, f6w3);
 				}
 				lRowsVis[itr2 + 1] = rowVis;
 			}
