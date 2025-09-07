@@ -7,6 +7,12 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.config.IDepthHandler;
 
+/**
+ * DataLayer implementation for byte sized light level
+ * 
+ * @author RBLG
+ * @since v0.2.0
+ */
 public class ByteDataLayer extends DynamicDataLayer {
 
 	/**

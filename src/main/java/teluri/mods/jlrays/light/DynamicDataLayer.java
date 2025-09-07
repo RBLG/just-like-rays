@@ -5,6 +5,12 @@ import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.config.JlrConfig;
 import teluri.mods.jlrays.util.ToneMapperHelper;
 
+/**
+ * common part of the implementations of the different sizes of DataLayer
+ * 
+ * @author RBLG
+ * @since v0.2.0
+ */
 public abstract class DynamicDataLayer extends DataLayer {
 	/**
 	 * size of a chunk

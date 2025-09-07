@@ -1,5 +1,12 @@
 package teluri.mods.jlrays.config;
 
+
+/**
+ * general config for the light engine
+ * 
+ * @author RBLG
+ * @since v0.2.0
+ */
 public class JlrConfig {
 	/**
 	 * Config singleton

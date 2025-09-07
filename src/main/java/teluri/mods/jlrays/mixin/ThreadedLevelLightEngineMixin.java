@@ -11,6 +11,12 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 import teluri.mods.jlrays.misc.DullBlockPos;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
 
+/**
+ * allow monitoring of block updates to catch unmodified BlockPos before they change thread
+ * 
+ * @author RBLG
+ * @since v0.2.0
+ */
 @Mixin(ThreadedLevelLightEngine.class)
 public abstract class ThreadedLevelLightEngineMixin extends LevelLightEngine implements AutoCloseable {
 

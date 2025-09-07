@@ -3,6 +3,12 @@ package teluri.mods.jlrays.misc;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
+/**
+ * provide EmitProperties to be used on BlockState to provide more properties for light sources
+ * 
+ * @author RBLG
+ * @since v0.2.0
+ */
 public interface IHasEmitProperties {
 
 	void setLightBlock(int value);
@@ -19,12 +25,19 @@ public interface IHasEmitProperties {
 		return prop == null ? EmitProperties.DEFAULT : prop;
 	}
 
+	default boolean hasEmitProperties() {
+		return this.getEmitPropertiesNullable() == null;
+	}
+
+	/**
+	 * optionnal properties for light sources
+	 */
 	public static class EmitProperties {
 		public static EmitProperties DEFAULT = new EmitProperties();
 
 		public Vector3f offset = new Vector3f(0); // -0.5 to 0.5 range
 		public Vector3f radius = new Vector3f(0.5f); // offset+radius should be in the -0.5 to 0.5 range
-		public float emitScale = 1; // how fast light fall off
+		public float emitScale = 1; // how fast light fall off //TODO handle
 
 		public boolean isValid() {
 			if (radius.x < 0 || radius.y < 0 || radius.z < 0) {

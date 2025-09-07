@@ -13,7 +13,7 @@ import teluri.mods.jlrays.config.EmitPropertiesPatch.EmitPropertiesFullPatch;
 import teluri.mods.jlrays.misc.IHasEmitProperties.EmitProperties;
 
 /**
- * settings for JLR.
+ * config for blockstates modification
  * 
  * 
  * @author RBLG
