@@ -69,18 +69,18 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	@Override
 	public int get(int index) {
-		return isEmptyDyn() ? defaultValue : ToneMapperHelper.clamp(getFull(index));
+		return isEmptyDyn() ? defaultValue : (int) ToneMapperHelper.clamp(getFull(index) * (1 >> this.precision));
 	}
 
-	public int getFull(int x, int y, int z) {
+	public float getFull(int x, int y, int z) {
 		return getFull(getIndex(x, y, z));
 	}
 
 	/**
 	 * get light level in the full range (0..255)
 	 */
-	public int getFull(int index) {
-		return isEmptyDyn() ? defaultValue : getDyn(index) >> this.precision;
+	public float getFull(int index) {
+		return isEmptyDyn() ? defaultValue : getDyn(index);
 	}
 
 	@Override

@@ -92,7 +92,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 	 * @param levelPos
 	 * @return
 	 */
-	public int getFullStoredLevel(long levelPos) {
+	public float getFullStoredLevel(long levelPos) {
 		long l = SectionPos.blockToSection(levelPos);
 		DataLayer dataLayer = (DynamicDataLayer) this.getDataLayer(l, true);
 

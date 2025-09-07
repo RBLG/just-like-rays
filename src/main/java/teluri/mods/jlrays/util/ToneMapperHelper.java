@@ -48,4 +48,8 @@ public final class ToneMapperHelper {
 	public static int clamp(int value) {
 		return Math.min(value, 15);
 	}
+
+	public static float clamp(float value) {
+		return Math.min(value, 15);
+	}
 }
