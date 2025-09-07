@@ -59,10 +59,10 @@ public class JlrBlockLightEngine {
 		JlrConfig config = JlrConfig.LazyGet();
 
 		DISTANCE_RATIO = config.distanceRatio;
-		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission);
 		PRECISION_MULTIPLIER = 1 << config.precision;
 		CORRECTED_MINIMUM_VALUE = config.minimumValue * PRECISION_MULTIPLIER;
 		RANGE_EDGE_NUMBER = 1 / (CORRECTED_MINIMUM_VALUE * DISTANCE_RATIO);
+		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission);
 	}
 
 	/**
