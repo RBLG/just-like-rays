@@ -9,7 +9,8 @@
 		"ChunkSerializerMixin",
 		"ClientboundLightUpdatePacketDataMixin",
 		"BlockStateBaseMixin",
-		"BlocksMixin"
+		"BlocksMixin",
+		"LightEngineMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
