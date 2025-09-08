@@ -1,7 +1,5 @@
 package teluri.mods.jlrays.light;
 
-import org.joml.Math;
-import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
@@ -227,15 +225,11 @@ public class JlrBlockLightEngine {
 	protected void updateImpactedSource(Vector3i source, BlockState oldbs, BlockState newbs) {
 		int oldemit = oldbs.getLightEmission();
 		int newemit = newbs.getLightEmission();
-		IHasEmitProperties oldbs2 = (IHasEmitProperties) oldbs;
-		IHasEmitProperties newbs2 = (IHasEmitProperties) newbs;
-		EmitProperties oldprop = oldbs2.getEmitPropertiesNullable();
-		EmitProperties newprop = newbs2.getEmitPropertiesNullable();
-		EmitProperties oldprop2 = oldbs2.getEmitProperties();
-		EmitProperties newprop2 = newbs2.getEmitProperties();
+		EmitProperties oldprop = ((IHasEmitProperties) oldbs).getEmitPropertiesNullable();
+		EmitProperties newprop = ((IHasEmitProperties) newbs).getEmitPropertiesNullable();
 
 		if (oldemit != newemit) {
-			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit, oldprop2, newprop2);
+			int change = getLightLevelChange(source, source, 1, 1, oldemit, newemit);
 			this.lightStorage.addLevel(BlockPos.asLong(source.x, source.y, source.z), change);
 		}
 		int range = getRange(Math.max(oldemit, newemit));
@@ -247,11 +241,13 @@ public class JlrBlockLightEngine {
 		TaskCache preCache = this.taskCacheFactory.createWithRange(source, range);
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
 			TaskCache taskCache = preCache.shallowCopy();
-			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, oldprop2, newprop2, taskCache);
+			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
 			IAlphaProvider naprov = taskCache;
 
 			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant)) || (oldprop != null && newprop != null)) {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
+				EmitProperties oldprop2 = oldprop != null ? oldprop : EmitProperties.DEFAULT;
+				EmitProperties newprop2 = newprop != null ? newprop : EmitProperties.DEFAULT;
 				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false, oldprop2, newprop2);
 			} else if (oldemit != newemit) {
 				EmitProperties prop = oldprop != null ? oldprop : newprop != null ? newprop : EmitProperties.DEFAULT;
@@ -334,7 +330,7 @@ public class JlrBlockLightEngine {
 			int emit = blockState.getLightEmission();
 			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
-			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit, EmitProperties.DEFAULT, prop);
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
 
 			int range = getRange(emit);
@@ -343,7 +339,7 @@ public class JlrBlockLightEngine {
 			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 				TaskCache taskCache = preCache.shallowCopy();
 
-				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, EmitProperties.DEFAULT, prop, taskCache);
+				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
 				IAlphaProvider naprov = taskCache;
 				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false, prop);
 			});
@@ -441,12 +437,12 @@ public class JlrBlockLightEngine {
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */
-	public void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, EmitProperties oprop, EmitProperties nprop, TaskCache taskCache) {
+	public void updateLight(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, TaskCache taskCache) {
 		DynamicDataLayer data = taskCache.getCachedDataLayer(xyz.x, xyz.y, xyz.z);
 		if (data == null) {
 			return;
 		}
-		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit, oprop, nprop);
+		int change = getLightLevelChange(source, xyz, ovisi, nvisi, oldemit, newemit);
 		if (change != 0) {
 			int lx = SectionPos.sectionRelative(xyz.x);
 			int ly = SectionPos.sectionRelative(xyz.y);
@@ -460,22 +456,18 @@ public class JlrBlockLightEngine {
 	/**
 	 * get the light update change value without actually applying it
 	 */
-	public int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit, EmitProperties oprop, EmitProperties nprop) {
+	public int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
+		float distinv = 1 / (1 + source.distanceSquared(xyz) * DISTANCE_RATIO);
 
-		int oldlevel = calculateLightLevel(source, xyz, ovisi, oldemit, oprop);
-		int newlevel = calculateLightLevel(source, xyz, nvisi, newemit, nprop);
+		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
+		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
 
 		return -oldlevel + newlevel;
 	}
 
-	public int calculateLightLevel(Vector3i source, Vector3i xyz, float visi, int emit, EmitProperties prop) {
-		if (emit == 0 || visi == 0) {
-			return 0;
-		}
+	public int calculateLightLevel(float visi, float distinv, int emit) {
 		emit *= PRECISION_MULTIPLIER;
-		Vector3f ofs = prop.offset;
-		float dist = 1 + distanceSquared(source, xyz.x + ofs.x, xyz.y + ofs.y, xyz.z + ofs.z) * DISTANCE_RATIO;
-		return Math.clamp((int) (visi * emit / dist - CORRECTED_MINIMUM_VALUE), 0, emit);
+		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - CORRECTED_MINIMUM_VALUE), 0, emit);
 	}
 
 	/**
@@ -491,12 +483,4 @@ public class JlrBlockLightEngine {
 	public float getRangeSquared(float emit) {
 		return (emit * PRECISION_MULTIPLIER - CORRECTED_MINIMUM_VALUE) * RANGE_EDGE_NUMBER;
 	}
-
-	public float distanceSquared(Vector3i xyz, float x, float y, float z) {
-		float dx = xyz.x - x;
-		float dy = xyz.y - y;
-		float dz = xyz.z - z;
-		return Math.fma(dx, dx, Math.fma(dy, dy, dz * dz));
-	}
-
 }
