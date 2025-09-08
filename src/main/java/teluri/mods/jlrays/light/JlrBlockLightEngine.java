@@ -473,7 +473,8 @@ public class JlrBlockLightEngine {
 			return 0;
 		}
 		emit *= PRECISION_MULTIPLIER;
-		float dist = 1 + distanceSquaredWithOffsetAndRadius(source, xyz, prop.offset, prop.radius) * DISTANCE_RATIO;
+		Vector3f ofs = prop.offset;
+		float dist = 1 + distanceSquared(source, xyz.x + ofs.x, xyz.y + ofs.y, xyz.z + ofs.z) * DISTANCE_RATIO;
 		return Math.clamp((int) (visi * emit / dist - CORRECTED_MINIMUM_VALUE), 0, emit);
 	}
 
@@ -491,10 +492,10 @@ public class JlrBlockLightEngine {
 		return (emit * PRECISION_MULTIPLIER - CORRECTED_MINIMUM_VALUE) * RANGE_EDGE_NUMBER;
 	}
 
-	public float distanceSquaredWithOffsetAndRadius(Vector3i a, Vector3i b, Vector3f off, Vector3f rad) {
-		float dx = Math.max(0, Math.abs(a.x - b.x - off.x) - rad.x);
-		float dy = Math.max(0, Math.abs(a.y - b.y - off.y) - rad.y);
-		float dz = Math.max(0, Math.abs(a.z - b.z - off.z) - rad.z);
+	public float distanceSquared(Vector3i xyz, float x, float y, float z) {
+		float dx = xyz.x - x;
+		float dy = xyz.y - y;
+		float dz = xyz.z - z;
 		return Math.fma(dx, dx, Math.fma(dy, dy, dz * dz));
 	}
 
