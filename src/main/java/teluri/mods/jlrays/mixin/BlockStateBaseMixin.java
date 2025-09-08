@@ -3,7 +3,6 @@ package teluri.mods.jlrays.mixin;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,7 +19,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.config.BlockConfig;
-import teluri.mods.jlrays.misc.IHasEmitProperties;
+import teluri.mods.jlrays.misc.IHasLightProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 
 /**
@@ -28,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
  * @since v0.0.4
  */
 @Mixin(BlockStateBase.class)
-public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implements IHasEmitProperties {
+public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implements IHasLightProperties {
 
 	@Shadow
 	private int lightEmission;
@@ -36,9 +35,6 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 	private int lightBlock;
 	@Shadow
 	private FluidState fluidState;
-
-	@Nullable
-	protected EmitProperties emitprops = null;
 
 	/**
 	 * modify fields based on description id. will be used for settings
@@ -59,15 +55,8 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 					e.printStackTrace();
 				}
 			}
-			if (emitprops != null && !emitprops.isValid()) {
-				JustLikeRays.LOGGER.warn(owner.getDescriptionId() + "'s blockstate had invalid offset and/or radius");
-				emitprops.enforceValidity();
-			}
 		}
 		float emitByDist = lightEmission;
-		if (emitprops != null) {
-			emitByDist *= emitprops.emitScale;
-		}
 		config.maxEmission = Float.max(config.maxEmission, emitByDist);
 	}
 
@@ -79,19 +68,6 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implemen
 	@Override
 	public void setLightEmit(int value) {
 		lightEmission = value;
-	}
-
-	@Override
-	public EmitProperties initEmitProperties() {
-		if (emitprops == null) {
-			emitprops = new EmitProperties();
-		}
-		return emitprops;
-	}
-
-	@Override
-	public @Nullable EmitProperties getEmitPropertiesNullable() {
-		return emitprops;
 	}
 
 	/**
