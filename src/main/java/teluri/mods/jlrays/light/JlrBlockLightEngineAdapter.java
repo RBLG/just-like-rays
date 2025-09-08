@@ -62,8 +62,8 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 
 	@Override
 	public void queueSectionData(long sectionPos, @Nullable DataLayer data) {
-		if (data != null && !(data instanceof DynamicDataLayer)) {//TODO update
-			JustLikeRays.LOGGER.warn("block light data layer isnt byte sized");
+		if (data != null && !(data instanceof DynamicDataLayer)) {
+			JustLikeRays.LOGGER.warn("block light DataLayer isnt DynamicDataLayer");
 		}
 		super.queueSectionData(sectionPos, data);
 	}

@@ -64,9 +64,6 @@ public class FbGbvSightEngine {
 	 * get the visibility value for the block based on the visibility values of the faces and their weights
 	 */
 	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
-		// innacurate but diagonal walls dont cast shadows on themselves
-		// return max(val1, max(val2, val3));
-		// accurate output but might look worse.
 		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
 
@@ -110,7 +107,7 @@ public class FbGbvSightEngine {
 			for (int itr2 = 0; itr2 < range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1); // second component of xyz
 				int rowVis = (itr1 + itr2 - 1) >>> 31;// (itr1 == 0 && itr2 == 0) ? 1 : 0; // if both are zero, itr3 start at 1
-				for (int itr3 = rowVis; itr3 < range; itr3++) { // TODO standardize if its <range or <=range
+				for (int itr3 = rowVis; itr3 < range; itr3++) {
 					int index = ((itr2 * size) + itr3) * 3; // translate 2d coordinates to 1d for use as an array index
 
 					// get this voxel exposed faces from the buffer

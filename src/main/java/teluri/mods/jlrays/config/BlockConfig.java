@@ -42,16 +42,6 @@ public class BlockConfig {
 			bsep.setLightEmit(10);
 			bsep.setLightBlock(bs.getFluidState().isSource() ? 15 : 0);
 		});
-//		on("block.minecraft.torch", "block.minecraft.soul_torch").addLightPatch((bs, bsep) -> {
-//		});
-//		on("block.minecraft.wall_torch", "block.minecraft.soul_wall_torch").addLightPatch((bs, bsep) -> {
-//		});
-//		on("block.minecraft.lantern", "block.minecraft.soul_lantern").addLightPatch((bs, bsep) -> {
-//		});
-//		on("block.minecraft.campfire", "block.minecraft.soul_campfire").addLightPatch((bs, bsep) -> {
-//			if (bs.getValue(BlockStateProperties.LIT)) {
-//			}
-//		});
 	}
 
 	public float getMaxEmission() {
@@ -75,7 +65,7 @@ public class BlockConfig {
 
 		public void addPatch(Consumer<BlockStateBase> bsmod) {
 			if (late) {
-				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-settings\"");
+				JustLikeRays.LOGGER.warn("config modified after blockstates init started, consider using an entrypoint of type \"jlr-config\"");
 			}
 			for (String key : keys) {
 				blockstates.computeIfAbsent(key, (v) -> new ArrayList<>()).add(bsmod);

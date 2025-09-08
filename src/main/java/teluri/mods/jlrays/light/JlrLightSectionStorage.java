@@ -59,7 +59,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (dataLayer instanceof DynamicDataLayer) {
 			((DynamicDataLayer) dataLayer).add(x, y, z, lightLevel);
 		} else {
-			JustLikeRays.LOGGER.warn("could not do a proper add in DataLayer because it wasnt byte sized");
+			JustLikeRays.LOGGER.warn("couldnt do a proper add because DataLayer wasnt DynamicDataLayer");
 		}
 		notifyUpdate(BlockPos.getX(levelPos), BlockPos.getY(levelPos), BlockPos.getZ(levelPos));
 	}
@@ -103,7 +103,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (dataLayer instanceof DynamicDataLayer) {
 			return ((DynamicDataLayer) dataLayer).getFull(x, y, z);
 		} else {
-			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt byte sized");
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt a DynamicDataLayer");
 			return dataLayer.get(x, y, z);
 		}
 	}
@@ -125,7 +125,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (dataLayer instanceof DynamicDataLayer) {
 			return (DynamicDataLayer) dataLayer;
 		} else {
-			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getDataLayerForCaching wasnt byte sized");
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getDataLayerForCaching wasnt a DynamicDataLayer");
 			return null;
 		}
 	}
@@ -142,14 +142,14 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 			return;
 		}
 		if (!(layer instanceof DynamicDataLayer)) {
-			JustLikeRays.LOGGER.error("not cached datalayer isnt byte sized during validity check");
+			JustLikeRays.LOGGER.error("not cached DataLayer isnt DynamicDataLayer during validity check");
 		}
-		layer = getDataLayer(sectionPos, true);
-		if (layer == null) {
+		DataLayer layer2 = getDataLayer(sectionPos, true);
+		if (layer2 == null) {
 			return;
 		}
-		if (!(layer instanceof DynamicDataLayer)) {
-			JustLikeRays.LOGGER.error("cached datalayer isnt byte sized during validity check");
+		if (!(layer2 instanceof DynamicDataLayer)) {
+			JustLikeRays.LOGGER.error("cached datalayer isnt DynamicDataLayer during validity check");
 		}
 	}
 
