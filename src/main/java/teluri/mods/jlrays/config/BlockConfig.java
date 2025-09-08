@@ -87,6 +87,4 @@ public class BlockConfig {
 		}
 
 	}
-
-	// TODO check between two blockstates to see if they have the same emitprops
 }
