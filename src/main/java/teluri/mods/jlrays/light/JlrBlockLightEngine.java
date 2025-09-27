@@ -176,7 +176,7 @@ public class JlrBlockLightEngine {
 			};
 
 			IAlphaProvider naprov = taskCache;
-			if (size == 0) {
+			if (size == 0) { //TODO if updated block is complex, use the changed quadrant path too, otherwise it doesnt work
 				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
 			} else {
 				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
@@ -304,11 +304,12 @@ public class JlrBlockLightEngine {
 	protected IBlockStateProvider getFastestPreviousBlockStateProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		long target = targets[0];
 		BlockState bs = oldbss[0];
+		Long2ObjectOpenHashMap<BlockState> changeMap = this.changeMap;
 		return switch (size) {
 		case 0 /*             */ -> taskCache;
 		case 1 /*             */ -> (x, y, z) -> getOldStateWhenOne_(x, y, z, taskCache, bs, target);
 		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, taskCache, oldbss, targets, size);
-		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache);
+		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache, changeMap);
 		};
 	}
 
@@ -351,6 +352,7 @@ public class JlrBlockLightEngine {
 	 * handle shape based occlusion
 	 */
 	public static AlphaHolder getAlphas(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
+		// TODO make an equivalent that does both old and new at once
 		BlockState state = bsprov.get(xyz);
 		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = getAlpha(state);
 		if (hol.block != 0 && isntEmptyShape(state)) {
@@ -395,14 +397,14 @@ public class JlrBlockLightEngine {
 	/**
 	 * blockstate provider for when there's a single block updates in range
 	 */
-	public BlockState getOldStateWhenOne_(int x, int y, int z, TaskCache taskCache, BlockState oldbs, long target) {
+	public static BlockState getOldStateWhenOne_(int x, int y, int z, TaskCache taskCache, BlockState oldbs, long target) {
 		return target == BlockPos.asLong(x, y, z) ? oldbs : taskCache.getState(x, y, z);
 	}
 
 	/**
 	 * blockstate provider for when there's a small amount of block updates in range
 	 */
-	public BlockState getOldStateWhenSome(int x, int y, int z, TaskCache taskCache, BlockState[] oldbss, long[] targets, int size) {
+	public static BlockState getOldStateWhenSome(int x, int y, int z, TaskCache taskCache, BlockState[] oldbss, long[] targets, int size) {
 		for (int iter = 0; iter < size; iter++) {
 			if (targets[iter] == BlockPos.asLong(x, y, z)) {
 				return oldbss[iter];
@@ -414,7 +416,7 @@ public class JlrBlockLightEngine {
 	/**
 	 * blockstate provider for when there's many block updates in range
 	 */
-	public BlockState getOldStateWhenMany(int x, int y, int z, TaskCache taskCache) {
+	public static BlockState getOldStateWhenMany(int x, int y, int z, TaskCache taskCache, Long2ObjectOpenHashMap<BlockState> changeMap) {
 		BlockState state = changeMap.get(BlockPos.asLong(x, y, z));
 		return state != null ? state : taskCache.getState(x, y, z);
 	}
