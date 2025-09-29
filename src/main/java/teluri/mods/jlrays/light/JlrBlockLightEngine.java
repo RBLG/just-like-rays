@@ -319,9 +319,10 @@ public class JlrBlockLightEngine {
 	public void propagateLightSources(ChunkPos chunkPos) {
 		lightStorage.setLightEnabled(chunkPos, true);
 		// TODO find a way to init TaskCache properly with chunkPos
+		Vector3i tmp = new Vector3i(); // findBlockLightSources isnt paralel so we can do that
 		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
 			int emit = blockState.getLightEmission();
-			Vector3i vpos = new Vector3i(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+			Vector3i vpos = tmp.set(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
 			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
 			this.lightStorage.addLevel(blockPos.asLong(), change);
