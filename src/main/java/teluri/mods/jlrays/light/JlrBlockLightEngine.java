@@ -52,6 +52,7 @@ public class JlrBlockLightEngine {
 	public final float RANGE_EDGE_NUMBER;
 	public final int MAX_RANGE;
 	public final int PRECISION_MULTIPLIER;
+	public final float MINVAL_CORRECTOR2;
 
 	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
@@ -63,6 +64,7 @@ public class JlrBlockLightEngine {
 		DISTANCE_RATIO = config.distanceRatio;
 		PRECISION_MULTIPLIER = 1 << config.precision;
 		CORRECTED_MINIMUM_VALUE = config.minimumValue * PRECISION_MULTIPLIER;
+		MINVAL_CORRECTOR2 = 15.001f / (15 - CORRECTED_MINIMUM_VALUE); // so that the top value actually equals 15
 		RANGE_EDGE_NUMBER = 1 / (CORRECTED_MINIMUM_VALUE * DISTANCE_RATIO);
 		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission);
 	}
@@ -294,7 +296,7 @@ public class JlrBlockLightEngine {
 	 */
 	protected IAlphaChangeProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size, taskCache);
-		return (xyz,source, quadr, ohol, nhol) -> getAlphasChange(xyz,source, bsprov, taskCache, quadr, ohol, nhol);
+		return (xyz, source, quadr, ohol, nhol) -> getAlphasChange(xyz, source, bsprov, taskCache, quadr, ohol, nhol);
 	}
 
 	/**
@@ -506,7 +508,7 @@ public class JlrBlockLightEngine {
 	 * get the light update change value without actually applying it
 	 */
 	public int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float distinv = 1 / (1 + source.distanceSquared(xyz) * DISTANCE_RATIO);
+		float distinv = 1 / Math.max(1, 1 - DISTANCE_RATIO + source.distanceSquared(xyz) * DISTANCE_RATIO);
 
 		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
 		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
@@ -516,7 +518,7 @@ public class JlrBlockLightEngine {
 
 	public int calculateLightLevel(float visi, float distinv, int emit) {
 		emit *= PRECISION_MULTIPLIER;
-		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) (visi * distinv * emit - CORRECTED_MINIMUM_VALUE), 0, emit);
+		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) ((visi * distinv * emit - CORRECTED_MINIMUM_VALUE) * MINVAL_CORRECTOR2), 0, emit);
 	}
 
 	/**
