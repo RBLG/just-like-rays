@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -24,6 +25,7 @@ import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaChangeProvider;
 import teluri.mods.jlrays.misc.DullBlockPos;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
 import static teluri.mods.jlrays.util.MathHelper.*;
@@ -66,7 +68,8 @@ public class JlrBlockLightEngine {
 	}
 
 	/**
-	 * fired when a block update happen. will read the previous and current blockstate hidden in the shiny blockpos and queue the change for a light update
+	 * fired when a block update happen. will read the previous and current blockstate hidden in the shiny blockpos and queue the change for a
+	 * light update
 	 */
 	public void checkBlock(BlockPos pos) {
 		if (!(pos instanceof ShinyBlockPos)) {
@@ -96,9 +99,7 @@ public class JlrBlockLightEngine {
 			} else {
 				secupd.merge(pos);
 			}
-
 		}
-
 	}
 
 	public boolean hasLightWork() {
@@ -109,8 +110,6 @@ public class JlrBlockLightEngine {
 	 * applies all updates in the queue
 	 */
 	public void runLightUpdates() {
-		// MutableBlockPos mbptmp = new MutableBlockPos();
-
 		// scout the area around block updates to find light sources that need to be updated
 		sectionChangeMap.long2ObjectEntrySet().parallelStream().forEach((entry) -> {
 			SectionUpdate secupd = entry.getValue();
@@ -158,6 +157,7 @@ public class JlrBlockLightEngine {
 		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
 
 		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
+
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can get away with sharing most of the cache, just not the mutpos
 
@@ -175,12 +175,11 @@ public class JlrBlockLightEngine {
 				// no need to check for lightsources in previous blockStates, as they would already be in sourceChangemap
 			};
 
-			IAlphaProvider naprov = taskCache;
-			if (size == 0) { //TODO if updated block is complex, use the changed quadrant path too, otherwise it doesnt work
-				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, naprov, scons, true); // true== scout
+			if (size == 0) {
+				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, taskCache, scons, true); // true== scout
 			} else {
-				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, oaprov, naprov, scons, true);
+				IAlphaChangeProvider caprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
+				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, caprov, scons, true);
 			}
 		});
 	}
@@ -241,8 +240,8 @@ public class JlrBlockLightEngine {
 			IAlphaProvider naprov = taskCache;
 
 			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
-				IAlphaProvider oaprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, oaprov, naprov, consu, false);
+				IAlphaChangeProvider caprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
+				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, caprov, consu, false);
 			} else if (oldemit != newemit) {
 				// if no updates are around, its always an emit change, unless it was a bad approximation
 				FbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
@@ -293,9 +292,9 @@ public class JlrBlockLightEngine {
 	/**
 	 * return a provider adapted to the amount of block updates in range
 	 */
-	protected IAlphaProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
+	protected IAlphaChangeProvider getFastestPreviousAlphaProvider(BlockState[] oldbss, long[] targets, int size, TaskCache taskCache) {
 		IBlockStateProvider bsprov = getFastestPreviousBlockStateProvider(oldbss, targets, size, taskCache);
-		return (xyz, quadr, hol) -> getAlphas(xyz, bsprov, quadr, hol);
+		return (xyz,source, quadr, ohol, nhol) -> getAlphasChange(xyz,source, bsprov, taskCache, quadr, ohol, nhol);
 	}
 
 	/**
@@ -352,10 +351,9 @@ public class JlrBlockLightEngine {
 	/**
 	 * handle shape based occlusion
 	 */
-	public static AlphaHolder getAlphas(Vector3i xyz, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
-		// TODO make an equivalent that does both old and new at once
+	public static AlphaHolder getAlphas(Vector3i xyz, Vector3i source, IBlockStateProvider bsprov, Quadrant quadr, AlphaHolder hol) {
 		BlockState state = bsprov.get(xyz);
-		hol.f1 = hol.f2 = hol.f3 = hol.f4 = hol.f5 = hol.f6 = hol.block = getAlpha(state);
+		hol.setAll(getAlpha(state));
 		if (hol.block != 0 && isntEmptyShape(state)) {
 			Direction d1 = 0 < quadr.axis1.x ? Direction.WEST : Direction.EAST;
 			Direction d2 = 0 < quadr.axis2.y ? Direction.DOWN : Direction.UP;
@@ -365,23 +363,79 @@ public class JlrBlockLightEngine {
 			Direction d6 = d3.getOpposite();
 
 			// previous
-			hol.f1 = getFaceAlpha(state, bsprov, d1, xyz.x - quadr.axis1.x, xyz.y, xyz.z) * hol.block;
-			hol.f2 = getFaceAlpha(state, bsprov, d2, xyz.x, xyz.y - quadr.axis2.y, xyz.z) * hol.block;
-			hol.f3 = getFaceAlpha(state, bsprov, d3, xyz.x, xyz.y, xyz.z - quadr.axis3.z) * hol.block;
+			hol.f1 *= getFaceAlpha(source, state, bsprov, d1, xyz.x - quadr.axis1.x, xyz.y, xyz.z);
+			hol.f2 *= getFaceAlpha(source, state, bsprov, d2, xyz.x, xyz.y - quadr.axis2.y, xyz.z);
+			hol.f3 *= getFaceAlpha(source, state, bsprov, d3, xyz.x, xyz.y, xyz.z - quadr.axis3.z);
 
 			// next
-			hol.f4 = getFaceAlpha(state, bsprov, d4, xyz.x + quadr.axis1.x, xyz.y, xyz.z) * hol.block;
-			hol.f5 = getFaceAlpha(state, bsprov, d5, xyz.x, xyz.y + quadr.axis2.y, xyz.z) * hol.block;
-			hol.f6 = getFaceAlpha(state, bsprov, d6, xyz.x, xyz.y, xyz.z + quadr.axis3.z) * hol.block;
+			hol.f4 *= getFaceAlpha(source, state, bsprov, d4, xyz.x + quadr.axis1.x, xyz.y, xyz.z);
+			hol.f5 *= getFaceAlpha(source, state, bsprov, d5, xyz.x, xyz.y + quadr.axis2.y, xyz.z);
+			hol.f6 *= getFaceAlpha(source, state, bsprov, d6, xyz.x, xyz.y, xyz.z + quadr.axis3.z);
 		}
 		return hol;
+	}
+
+	public static void getAlphasChange(Vector3i xyz, Vector3i source, IBlockStateProvider oprov, IBlockStateProvider nprov, Quadrant quadr, AlphaHolder ohol,
+			AlphaHolder nhol) {
+		BlockState nstate = nprov.get(xyz);
+		BlockState ostate = oprov.get(xyz);
+		int nalpha = getAlpha(nstate);
+		nhol.setAll(nalpha);
+		boolean ncomplex = nhol.block != 0 && isntEmptyShape(nstate);
+		boolean ocomplex;
+		boolean same = ostate == null;
+		if (same) {
+			ostate = nstate;
+			ocomplex = ncomplex;
+			ohol.setAll(nalpha);
+		} else {
+			ohol.setAll(getAlpha(ostate));
+			ocomplex = ohol.block != 0 && isntEmptyShape(ostate);
+		}
+		if (!(ocomplex || ncomplex)) {
+			return;
+		}
+		Direction d1 = 0 < quadr.axis1.x ? Direction.WEST : Direction.EAST;
+		Direction d2 = 0 < quadr.axis2.y ? Direction.DOWN : Direction.UP;
+		Direction d3 = 0 < quadr.axis3.z ? Direction.NORTH : Direction.SOUTH;
+		Direction d4 = d1.getOpposite();
+		Direction d5 = d2.getOpposite();
+		Direction d6 = d3.getOpposite();
+
+		int x1___ = xyz.x - quadr.axis1.x, y2___ = xyz.y - quadr.axis2.y, z3___ = xyz.z - quadr.axis3.z;
+		int x4___ = xyz.x + quadr.axis1.x, y5___ = xyz.y + quadr.axis2.y, z6___ = xyz.z + quadr.axis3.z;
+
+		if (ncomplex) {
+			// previous
+			nhol.f1 *= getFaceAlpha(source, nstate, nprov, d1, x1___, xyz.y, xyz.z);
+			nhol.f2 *= getFaceAlpha(source, nstate, nprov, d2, xyz.x, y2___, xyz.z);
+			nhol.f3 *= getFaceAlpha(source, nstate, nprov, d3, xyz.x, xyz.y, z3___);
+
+			// next
+			nhol.f4 *= getFaceAlpha(source, nstate, nprov, d4, x4___, xyz.y, xyz.z);
+			nhol.f5 *= getFaceAlpha(source, nstate, nprov, d5, xyz.x, y5___, xyz.z);
+			nhol.f6 *= getFaceAlpha(source, nstate, nprov, d6, xyz.x, xyz.y, z6___);
+		}
+		if (same) {
+			ohol.setAll(nhol);
+		} else if (ocomplex) {
+			// previous
+			ohol.f1 *= getFaceAlpha(source, ostate, oprov, d1, x1___, xyz.y, xyz.z);
+			ohol.f2 *= getFaceAlpha(source, ostate, oprov, d2, xyz.x, y2___, xyz.z);
+			ohol.f3 *= getFaceAlpha(source, ostate, oprov, d3, xyz.x, xyz.y, z3___);
+
+			// next
+			ohol.f4 *= getFaceAlpha(source, ostate, oprov, d4, x4___, xyz.y, xyz.z);
+			ohol.f5 *= getFaceAlpha(source, ostate, oprov, d5, xyz.x, y5___, xyz.z);
+			ohol.f6 *= getFaceAlpha(source, ostate, oprov, d6, xyz.x, xyz.y, z6___);
+		}
 	}
 
 	/**
 	 * get an adjacent blockstate and check if light can pass from one to the other block
 	 */
-	protected static float getFaceAlpha(BlockState curstate, IBlockStateProvider bsprov, Direction dir, int ox, int oy, int oz) {
-		BlockState otherstate = bsprov.getState(ox, oy, oz);
+	protected static float getFaceAlpha(Vector3i source, BlockState curstate, IBlockStateProvider bsprov, Direction dir, int ox, int oy, int oz) {
+		BlockState otherstate = source.equals(ox, oy, oz) ? Blocks.AIR.defaultBlockState() : bsprov.getState(ox, oy, oz);
 		return shapeOccludes(curstate, otherstate, dir) ? 0 : 1;
 	}
 
@@ -425,10 +479,10 @@ public class JlrBlockLightEngine {
 	/**
 	 * update the light level value of a block based on given visibility and emition changes
 	 * 
-	 * @param source  position of the light source
-	 * @param xyz     position of the block to update
-	 * @param ovisi   old visibility value
-	 * @param nvisi   new visibility value
+	 * @param source position of the light source
+	 * @param xyz position of the block to update
+	 * @param ovisi old visibility value
+	 * @param nvisi new visibility value
 	 * @param oldemit old emition value
 	 * @param newemit new emition value
 	 */

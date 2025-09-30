@@ -184,8 +184,8 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	 * current alpha provider directly in there to avoid allocating by using lambdas
 	 */
 	@Override
-	public AlphaHolder getAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol) {
-		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol);
+	public AlphaHolder getAlphas(Vector3i xyz, Vector3i source, Quadrant quadr, AlphaHolder hol) {
+		return JlrBlockLightEngine.getAlphas(xyz, source, this, quadr, hol);
 	}
 
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
