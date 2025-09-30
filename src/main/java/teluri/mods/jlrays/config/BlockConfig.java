@@ -44,7 +44,7 @@ public class BlockConfig {
 	 */
 	private void addDefaultPatches() {
 		on("block.minecraft.lava").addLightPatch((bs, bsep) -> {
-			bsep.setLightEmit(10);
+			//bsep.setLightEmit(10);
 			bsep.setLightBlock(bs.getFluidState().isSource() ? 15 : 0);
 		});
 	}
