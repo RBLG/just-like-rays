@@ -47,12 +47,12 @@ public class JlrBlockLightEngine {
 	protected final IBlockStateProvider blockStateProvider;
 	protected final ILightStorage lightStorage;
 
-	public final float DISTANCE_RATIO;
-	public final float CORRECTED_MINIMUM_VALUE;
-	public final float RANGE_EDGE_NUMBER;
-	public final int MAX_RANGE;
-	public final int PRECISION_MULTIPLIER;
-	public final float MINVAL_CORRECTOR2;
+	public final float distanceRatio;
+	public final float correctedMinimumValue;
+	public final float rangeEdgeNumber;
+	public final int maxRange;
+	public final int precisionMultiplier;
+	public final float minValCorrector2;
 
 	public JlrBlockLightEngine(IBlockStateProvider nBSProvider, ITaskCacheFactory ntaskCacheFactory, ILightStorage nLightStorage) {
 
@@ -61,12 +61,12 @@ public class JlrBlockLightEngine {
 		lightStorage = nLightStorage;
 		JlrConfig config = JlrConfig.LazyGet();
 
-		DISTANCE_RATIO = config.distanceRatio;
-		PRECISION_MULTIPLIER = 1 << config.precision;
-		CORRECTED_MINIMUM_VALUE = config.minimumValue * PRECISION_MULTIPLIER;
-		MINVAL_CORRECTOR2 = 15.001f / (15 - CORRECTED_MINIMUM_VALUE); // so that the top value actually equals 15
-		RANGE_EDGE_NUMBER = 1 / (CORRECTED_MINIMUM_VALUE * DISTANCE_RATIO);
-		MAX_RANGE = getRange(BlockConfig.LazyGet().maxEmission);
+		distanceRatio = config.distanceRatio;
+		precisionMultiplier = 1 << config.precision;
+		correctedMinimumValue = config.minimumValue * precisionMultiplier;
+		minValCorrector2 = 15.001f / (15 - correctedMinimumValue); // so that the top value actually equals 15
+		rangeEdgeNumber = 1 / (correctedMinimumValue * distanceRatio);
+		maxRange = getRange(BlockConfig.LazyGet().maxEmission);
 	}
 
 	/**
@@ -156,9 +156,9 @@ public class JlrBlockLightEngine {
 	protected void evaluateImpactedSources(Vector3i pos) {
 		long[] inrangepos = new long[changeMap.size()];
 		BlockState[] inrangebs = new BlockState[changeMap.size()];
-		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, MAX_RANGE);
+		int size = filterBlockUpdatesByRange(pos, inrangepos, inrangebs, maxRange);
 
-		TaskCache preCache = taskCacheFactory.createWithRange(pos, MAX_RANGE);
+		TaskCache preCache = taskCacheFactory.createWithRange(pos, maxRange);
 
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> {
 			TaskCache taskCache = preCache.shallowCopy(); // differents quadrant can get away with sharing most of the cache, just not the mutpos
@@ -178,10 +178,10 @@ public class JlrBlockLightEngine {
 			};
 
 			if (size == 0) {
-				FbGbvSightEngine.traceQuadrant(pos, MAX_RANGE, quadrant, taskCache, scons, true); // true== scout
+				FbGbvSightEngine.traceQuadrant(pos, maxRange, quadrant, taskCache, scons, true); // true== scout
 			} else {
 				IAlphaChangeProvider caprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
-				FbGbvSightEngine.traceChangedQuadrant(pos, MAX_RANGE, quadrant, caprov, scons, true);
+				FbGbvSightEngine.traceChangedQuadrant(pos, maxRange, quadrant, caprov, scons, true);
 			}
 		});
 	}
@@ -200,8 +200,8 @@ public class JlrBlockLightEngine {
 		// TODO need a check to avoid iterating over same areas
 		// for Z lines, bound start and end based on if there's overlaping areas with other bounds
 		// if a Z line is entirely inside another, skip it, as it will be dealt with by another bound
-		int sx1 = secupd.x1 - MAX_RANGE, sy1 = secupd.y1 - MAX_RANGE, sz1 = secupd.z1 - MAX_RANGE;
-		int sx2 = secupd.x2 + MAX_RANGE, sy2 = secupd.y2 + MAX_RANGE, sz2 = secupd.z2 + MAX_RANGE;
+		int sx1 = secupd.x1 - maxRange, sy1 = secupd.y1 - maxRange, sz1 = secupd.z1 - maxRange;
+		int sx2 = secupd.x2 + maxRange, sy2 = secupd.y2 + maxRange, sz2 = secupd.z2 + maxRange;
 
 		TaskCache taskCache = taskCacheFactory.create(sx1, sy1, sz1, sx2, sy2, sz2);
 		for (int itx = sx1; itx < sx2; itx++) {
@@ -508,7 +508,7 @@ public class JlrBlockLightEngine {
 	 * get the light update change value without actually applying it
 	 */
 	public int getLightLevelChange(Vector3i source, Vector3i xyz, float ovisi, float nvisi, int oldemit, int newemit) {
-		float distinv = 1 / Math.max(1, 1 - DISTANCE_RATIO + source.distanceSquared(xyz) * DISTANCE_RATIO);
+		float distinv = 1 / Math.max(1, 1 - distanceRatio + source.distanceSquared(xyz) * distanceRatio);
 
 		int oldlevel = calculateLightLevel(ovisi, distinv, oldemit);
 		int newlevel = calculateLightLevel(nvisi, distinv, newemit);
@@ -517,8 +517,8 @@ public class JlrBlockLightEngine {
 	}
 
 	public int calculateLightLevel(float visi, float distinv, int emit) {
-		emit *= PRECISION_MULTIPLIER;
-		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) ((visi * distinv * emit - CORRECTED_MINIMUM_VALUE) * MINVAL_CORRECTOR2), 0, emit);
+		emit *= precisionMultiplier;
+		return emit == 0 || visi == 0 ? 0 : Math.clamp((int) ((visi * distinv * emit - correctedMinimumValue) * minValCorrector2), 0, emit);
 	}
 
 	/**
@@ -532,6 +532,6 @@ public class JlrBlockLightEngine {
 	 * get the square of the max range impacted by a source of given emission intensity
 	 */
 	public float getRangeSquared(float emit) {
-		return (emit * PRECISION_MULTIPLIER - CORRECTED_MINIMUM_VALUE) * RANGE_EDGE_NUMBER;
+		return (emit * precisionMultiplier - correctedMinimumValue) * rangeEdgeNumber;
 	}
 }
