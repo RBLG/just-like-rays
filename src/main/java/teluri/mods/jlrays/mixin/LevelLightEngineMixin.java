@@ -13,6 +13,13 @@ import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.lighting.LightEventListener;
 import teluri.mods.jlrays.light.JlrBlockLightEngineAdapter;
 
+
+/**
+ * replace the block light engine
+ * 
+ * @author RBLG
+ * @since v0.0.1
+ */
 @Mixin(LevelLightEngine.class)
 public abstract class LevelLightEngineMixin implements LightEventListener {
 	@Shadow

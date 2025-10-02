@@ -11,6 +11,7 @@ import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.lighting.DataLayerStorageMap;
 import net.minecraft.world.level.lighting.LayerLightSectionStorage;
 import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.JlrConfig;
 
 /**
  * implementation of LayerLightSectionStorage to make use of the new fancy effects of ByteDataLayer to be used by the custom light engine
@@ -40,7 +41,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 	@Override
 	protected DataLayer createDataLayer(long sectionPos) {
 		DataLayer dataLayer = this.queuedSections.get(sectionPos);
-		return dataLayer != null ? dataLayer : new ByteDataLayer();
+		return dataLayer != null ? dataLayer : JlrConfig.LazyGet().depthHandler.createDataLayer();
 	}
 
 	public void addStoredLevel(long levelPos, int lightLevel) {
@@ -55,17 +56,16 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		x = SectionPos.sectionRelative(BlockPos.getX(levelPos));
 		y = SectionPos.sectionRelative(BlockPos.getY(levelPos));
 		z = SectionPos.sectionRelative(BlockPos.getZ(levelPos));
-		if (dataLayer instanceof ByteDataLayer) {
-			((ByteDataLayer) dataLayer).add(x, y, z, lightLevel);
+		if (dataLayer instanceof DynamicDataLayer) {
+			((DynamicDataLayer) dataLayer).add(x, y, z, lightLevel);
 		} else {
-			JustLikeRays.LOGGER.warn("could not do a proper add in DataLayer because it wasnt byte sized");
-			dataLayer.set(x, y, z, dataLayer.get(x, y, z) + lightLevel);
+			JustLikeRays.LOGGER.warn("couldnt do a proper add because DataLayer wasnt DynamicDataLayer");
 		}
-		notifyUpdate(BlockPos.getX(levelPos),BlockPos.getY(levelPos),BlockPos.getZ(levelPos));
+		notifyUpdate(BlockPos.getX(levelPos), BlockPos.getY(levelPos), BlockPos.getZ(levelPos));
 	}
 
 	public void notifyUpdate(int x, int y, int z) { // TODO remove synchronized perf hog?
-		this.syncUsing(()->{
+		this.syncUsing(() -> {
 			SectionPos.aroundAndAtBlockPos(x, y, z, this.sectionsAffectedByLightUpdates::add);
 		});
 	}
@@ -79,6 +79,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 
 	/**
 	 * trick to get a sync access to unsync methods
+	 * 
 	 * @param action
 	 */
 	public synchronized void syncUsing(Runnable action) {
@@ -87,21 +88,22 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 
 	/**
 	 * get the full light level without tonemapping
+	 * 
 	 * @param levelPos
 	 * @return
 	 */
-	public int getFullStoredLevel(long levelPos) {
+	public float getFullStoredLevel(long levelPos) {
 		long l = SectionPos.blockToSection(levelPos);
-		DataLayer dataLayer = (ByteDataLayer) this.getDataLayer(l, true);
+		DataLayer dataLayer = (DynamicDataLayer) this.getDataLayer(l, true);
 
 		int x, y, z;
 		x = SectionPos.sectionRelative(BlockPos.getX(levelPos));
 		y = SectionPos.sectionRelative(BlockPos.getY(levelPos));
 		z = SectionPos.sectionRelative(BlockPos.getZ(levelPos));
-		if (dataLayer instanceof ByteDataLayer) {
-			return ((ByteDataLayer) dataLayer).getFull(x, y, z);
+		if (dataLayer instanceof DynamicDataLayer) {
+			return ((DynamicDataLayer) dataLayer).getFull(x, y, z);
 		} else {
-			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt byte sized");
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getFullStoredLevel wasnt a DynamicDataLayer");
 			return dataLayer.get(x, y, z);
 		}
 	}
@@ -109,7 +111,7 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 	/**
 	 * get data layer of a section coordinates while doing vanilla thingamagig so it should work like vanilla
 	 */
-	public synchronized ByteDataLayer getDataLayerForCaching(int x, int y, int z) {
+	public synchronized DynamicDataLayer getDataLayerForCaching(int x, int y, int z) {
 		long l = SectionPos.asLong(x, y, z);
 		if (!this.storingLightForSection(l)) {
 			return null;
@@ -120,10 +122,10 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		} else {
 			dataLayer = this.getDataLayer(l, true);
 		}
-		if (dataLayer instanceof ByteDataLayer) {
-			return (ByteDataLayer) dataLayer;
+		if (dataLayer instanceof DynamicDataLayer) {
+			return (DynamicDataLayer) dataLayer;
 		} else {
-			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getDataLayerForCaching wasnt byte sized");
+			JustLikeRays.LOGGER.warn("a DataLayer in JlrLightSectionStorage getDataLayerForCaching wasnt a DynamicDataLayer");
 			return null;
 		}
 	}
@@ -139,15 +141,15 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 		if (layer == null) {
 			return;
 		}
-		if (!(layer instanceof ByteDataLayer)) {
-			JustLikeRays.LOGGER.error("not cached datalayer isnt byte sized during validity check");
+		if (!(layer instanceof DynamicDataLayer)) {
+			JustLikeRays.LOGGER.error("not cached DataLayer isnt DynamicDataLayer during validity check");
 		}
-		layer = getDataLayer(sectionPos, true);
-		if (layer == null) {
+		DataLayer layer2 = getDataLayer(sectionPos, true);
+		if (layer2 == null) {
 			return;
 		}
-		if (!(layer instanceof ByteDataLayer)) {
-			JustLikeRays.LOGGER.error("cached datalayer isnt byte sized during validity check");
+		if (!(layer2 instanceof DynamicDataLayer)) {
+			JustLikeRays.LOGGER.error("cached datalayer isnt DynamicDataLayer during validity check");
 		}
 	}
 
@@ -169,4 +171,5 @@ public class JlrLightSectionStorage extends LayerLightSectionStorage<JlrLightSec
 			return this.map.get(sectionPos);
 		}
 	}
+
 }

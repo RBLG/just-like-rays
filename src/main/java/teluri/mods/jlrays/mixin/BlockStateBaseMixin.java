@@ -1,6 +1,7 @@
 package teluri.mods.jlrays.mixin;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,11 +13,13 @@ import com.mojang.serialization.MapCodec;
 
 import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
+import teluri.mods.jlrays.JustLikeRays;
+import teluri.mods.jlrays.config.BlockConfig;
+import teluri.mods.jlrays.misc.IHasLightProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
 
 /**
@@ -24,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour.BlockStateBase;
  * @since v0.0.4
  */
 @Mixin(BlockStateBase.class)
-public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
+public class BlockStateBaseMixin extends StateHolder<Block, BlockState> implements IHasLightProperties {
 
 	@Shadow
 	private int lightEmission;
@@ -34,26 +37,37 @@ public class BlockStateBaseMixin extends StateHolder<Block, BlockState> {
 	private FluidState fluidState;
 
 	/**
-	 * modify emition and opacity of lava blockstates
-	 */
-	// @Inject(method = "<init>*", at = @At("TAIL"))
-	// protected void dataDrivenInit(Block owner, Reference2ObjectArrayMap<Property<?>, Comparable<?>> values, MapCodec<BlockState> propertiesCodec, CallbackInfo info) {
-	// }
-
-	/**
 	 * modify fields based on description id. will be used for settings
 	 * 
 	 * @param info
 	 */
 	@Inject(method = "initCache()V", at = @At("RETURN"))
 	public void dataDrivenCacheInit(CallbackInfo info) {
-		if (owner instanceof LiquidBlock && Objects.equals(owner.getDescriptionId(), "block.minecraft.lava")) {
-
-			this.lightEmission = 7;
-
-			this.lightBlock = fluidState.isSource() ? 15 : 0;
-
+		BlockConfig config = BlockConfig.LazyGet();
+		config.notifyInitCache();
+		ArrayList<Consumer<BlockStateBase>> bsmods = config.blockstates.get(owner.getDescriptionId());
+		if (bsmods != null) {
+			for (Consumer<BlockStateBase> bsmod : bsmods) {
+				try {
+					bsmod.accept((BlockStateBase) (Object) this);
+				} catch (Exception e) {
+					JustLikeRays.LOGGER.error("exception in modifying blockstate: " + e.getMessage());
+					e.printStackTrace();
+				}
+			}
 		}
+		float emitByDist = lightEmission;
+		config.maxEmission = Float.max(config.maxEmission, emitByDist);
+	}
+
+	@Override
+	public void setLightBlock(int value) {
+		lightBlock = value;
+	}
+
+	@Override
+	public void setLightEmit(int value) {
+		lightEmission = value;
 	}
 
 	/**

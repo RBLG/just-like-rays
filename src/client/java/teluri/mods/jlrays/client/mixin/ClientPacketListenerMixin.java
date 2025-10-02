@@ -12,7 +12,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LevelLightEngine;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.config.JlrConfig;
 
 /**
  * @author RBLG
@@ -30,7 +30,7 @@ public class ClientPacketListenerMixin {
 			at = @At(value = "NEW", target = "()Lnet/minecraft/world/level/chunk/DataLayer;"))
 	private DataLayer newDataLayer(Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates, boolean update) {
 		if (lightLayer == LightLayer.BLOCK) {
-			return new ByteDataLayer();
+			return JlrConfig.LazyGet().depthHandler.createDataLayer();
 		}
 		return original.call();
 	}
@@ -43,7 +43,7 @@ public class ClientPacketListenerMixin {
 			at = @At(value = "NEW", target = "([B)Lnet/minecraft/world/level/chunk/DataLayer;"))
 	private DataLayer newDataLayerWithByteArray(byte[] data, Operation<DataLayer> original, int x, int z, LevelLightEngine lightEngine, LightLayer lightLayer, BitSet skyYMask, BitSet emptySkyYMask, Iterator<byte[]> skyUpdates, boolean update) {
 		if (lightLayer == LightLayer.BLOCK) {
-			return new ByteDataLayer(data);
+			return JlrConfig.LazyGet().depthHandler.createDataLayer(data);
 		}
 		return original.call(data);
 	}
