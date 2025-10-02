@@ -24,7 +24,6 @@ import teluri.mods.jlrays.light.sight.FbGbvSightEngine;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
-import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaChangeProvider;
 import teluri.mods.jlrays.misc.DullBlockPos;
 import teluri.mods.jlrays.misc.ShinyBlockPos;
@@ -239,14 +238,13 @@ public class JlrBlockLightEngine {
 		FbGbvSightEngine.forEachQuadrants((quadrant) -> { // TODO remove class creation for performance (?)
 			TaskCache taskCache = preCache.shallowCopy();
 			ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(source, xyz, ovisi, nvisi, oldemit, newemit, taskCache);
-			IAlphaProvider naprov = taskCache;
-
+			
 			if (size != 0 && (oldemit != newemit || isQuadrantChanged(inrangepos, size, source, quadrant))) {
 				IAlphaChangeProvider caprov = getFastestPreviousAlphaProvider(inrangebs, inrangepos, size, taskCache);
 				FbGbvSightEngine.traceChangedQuadrant(source, range, quadrant, caprov, consu, false);
 			} else if (oldemit != newemit) {
 				// if no updates are around, its always an emit change, unless it was a bad approximation
-				FbGbvSightEngine.traceQuadrant(source, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(source, range, quadrant, taskCache, consu, false);
 			}
 		});
 		preCache.applyAffectedCache();
@@ -273,8 +271,7 @@ public class JlrBlockLightEngine {
 				TaskCache taskCache = preCache.shallowCopy();
 	
 				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
-				IAlphaProvider naprov = taskCache;
-				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, taskCache, consu, false);
 			});
 			preCache.applyAffectedCache();
 		});
