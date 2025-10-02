@@ -253,6 +253,34 @@ public class JlrBlockLightEngine {
 	}
 
 	/**
+	 * in a chunk, compute all emition for each sources in the chunk
+	 */
+	public void propagateLightSources(ChunkPos chunkPos) {
+		lightStorage.setLightEnabled(chunkPos, true);
+		// TODO find a way to init TaskCache properly with chunkPos
+		Vector3i tmp = new Vector3i(); // findBlockLightSources isnt paralel so we can do that
+		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
+			int emit = blockState.getLightEmission();
+			Vector3i vpos = tmp.set(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+	
+			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
+			this.lightStorage.addLevel(blockPos.asLong(), change);
+	
+			int range = getRange(emit);
+	
+			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
+			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
+				TaskCache taskCache = preCache.shallowCopy();
+	
+				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
+				IAlphaProvider naprov = taskCache;
+				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
+			});
+			preCache.applyAffectedCache();
+		});
+	}
+
+	/**
 	 * iterate over a list of positions and return if there's at least one in the quadrant's direction
 	 */
 	public boolean isQuadrantChanged(long[] inrangepos, int size, Vector3i source, Quadrant quadrant) {
@@ -312,34 +340,6 @@ public class JlrBlockLightEngine {
 		case 2, 3, 4, 5, 6, 7, 8 -> (x, y, z) -> getOldStateWhenSome(x, y, z, taskCache, oldbss, targets, size);
 		default/*             */ -> (x, y, z) -> getOldStateWhenMany(x, y, z, taskCache, changeMap);
 		};
-	}
-
-	/**
-	 * in a chunk, compute all emition for each sources in the chunk
-	 */
-	public void propagateLightSources(ChunkPos chunkPos) {
-		lightStorage.setLightEnabled(chunkPos, true);
-		// TODO find a way to init TaskCache properly with chunkPos
-		Vector3i tmp = new Vector3i(); // findBlockLightSources isnt paralel so we can do that
-		lightStorage.findBlockLightSources(chunkPos, (blockPos, blockState) -> {
-			int emit = blockState.getLightEmission();
-			Vector3i vpos = tmp.set(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-
-			int change = getLightLevelChange(vpos, vpos, 1, 1, 0, emit);
-			this.lightStorage.addLevel(blockPos.asLong(), change);
-
-			int range = getRange(emit);
-
-			TaskCache preCache = this.taskCacheFactory.createWithRange(blockPos, range);
-			FbGbvSightEngine.forEachQuadrants((quadrant) -> {
-				TaskCache taskCache = preCache.shallowCopy();
-
-				ISightUpdateConsumer consu = (xyz, ovisi, nvisi) -> updateLight(vpos, xyz, ovisi, nvisi, 0, emit, taskCache);
-				IAlphaProvider naprov = taskCache;
-				FbGbvSightEngine.traceQuadrant(vpos, range, quadrant, naprov, consu, false);
-			});
-			preCache.applyAffectedCache();
-		});
 	}
 
 	/**
