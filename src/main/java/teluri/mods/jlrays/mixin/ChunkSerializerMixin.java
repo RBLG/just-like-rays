@@ -7,11 +7,13 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.config.IDepthHandler;
+import teluri.mods.jlrays.config.JlrConfig;
+import teluri.mods.jlrays.light.DynamicDataLayer;
 
 /**
  * @author RBLG
- * @since 
+ * @since
  */
 @Mixin(ChunkSerializer.class)
 public class ChunkSerializerMixin {
@@ -23,7 +25,13 @@ public class ChunkSerializerMixin {
 			method = "read*", //
 			at = @At(value = "NEW", target = "([B)Lnet/minecraft/world/level/chunk/DataLayer;", ordinal = 0))
 	static private DataLayer newDataLayerWithByteArray(byte[] data, Operation<DataLayer> original) {
-		return new ByteDataLayer(data);
+		IDepthHandler factory = JlrConfig.LazyGet().depthHandler;
+		int wanted = factory.getDataLayerSize();
+		if (data.length == wanted) {
+			return factory.createDataLayer(data);
+		} else {
+			DynamicDataLayer.warnForIncorrectSize(data.length, wanted);
+			return null;
+		}
 	}
-
 }
