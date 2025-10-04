@@ -2,9 +2,10 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.util.Mth;
+//import io.netty.buffer.ByteBuf;
+//import net.minecraft.network.codec.ByteBufCodecs;
+//import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.config.IDepthHandler;
 
 /**
@@ -69,7 +70,7 @@ public class ShortDataLayer extends DynamicDataLayer {
 
 	@Override
 	public void setDyn(int index, int value) {
-		data[index] = (short) Math.clamp(value, 0, 0xFFFF);
+		data[index] = (short) Mth.clamp(value, 0, 0xFFFF);
 	}
 
 	@Override
@@ -111,12 +112,12 @@ public class ShortDataLayer extends DynamicDataLayer {
 	}
 
 	public static class ShortDataLayerFactory implements IDepthHandler {
-		private static final StreamCodec<ByteBuf, byte[]> SHORT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(SIZE * 2);
+		//private static final StreamCodec<ByteBuf, byte[]> SHORT_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(SIZE * 2);
 
-		@Override
-		public StreamCodec<ByteBuf, byte[]> getCodec() {
-			return SHORT_DATA_LAYER_STREAM_CODEC;
-		}
+		//@Override
+		//public StreamCodec<ByteBuf, byte[]> getCodec() {
+		//	return SHORT_DATA_LAYER_STREAM_CODEC;
+		//}
 
 		@Override
 		public DynamicDataLayer createDataLayer() {
