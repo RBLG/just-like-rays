@@ -5,13 +5,15 @@ import org.joml.Vector3i;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
 import teluri.mods.jlrays.light.sight.misc.ISightUpdateConsumer;
 import teluri.mods.jlrays.light.sight.misc.Quadrant;
+import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaChangeProvider;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder.IAlphaProvider;
 import static java.lang.Math.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * naive implementation of the Face Based GBV algorithm, which is an evolution of GBV that attribute a value per face, instead of per voxel. <br>
+ * naive implementation of the Face Based GBV algorithm, which is an evolution of GBV that attribute a value per face, instead of per voxel.
+ * <br>
  * this come with the precision of 18 neigbors 3d GBV but without the leaks that happen with anything further than 6neigbors. <br>
  * it drawback is having to interpolate for 3 values instead of 1
  * 
@@ -64,9 +66,6 @@ public class FbGbvSightEngine {
 	 * get the visibility value for the block based on the visibility values of the faces and their weights
 	 */
 	public static float facesToVolumeValue(float val1, float w1, float val2, float w2, float val3, float w3) {
-		// innacurate but diagonal walls dont cast shadows on themselves
-		// return max(val1, max(val2, val3));
-		// accurate output but might look worse.
 		return interpolate(val1, w1, val2, w2, val3, w3);
 	}
 
@@ -81,10 +80,10 @@ public class FbGbvSightEngine {
 	 * run the FBGBV algorithm over a quadrant with no block updates in range
 	 * 
 	 * @param origin position of the source of the light
-	 * @param range  max range that is iterated over
-	 * @param quadr  quadrant currently processed
-	 * @param aprov  alpha provider
-	 * @param scons  sight consumer (output)
+	 * @param range max range that is iterated over
+	 * @param quadr quadrant currently processed
+	 * @param aprov alpha provider
+	 * @param scons sight consumer (output)
 	 */
 	public static void traceQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider aprov, ISightUpdateConsumer scons, boolean scout) {
 		final Vector3i vit1 = new Vector3i();
@@ -110,7 +109,7 @@ public class FbGbvSightEngine {
 			for (int itr2 = 0; itr2 < range; itr2++) {
 				vit2.set(quadr.axis2).mul(itr2).add(vit1); // second component of xyz
 				int rowVis = (itr1 + itr2 - 1) >>> 31;// (itr1 == 0 && itr2 == 0) ? 1 : 0; // if both are zero, itr3 start at 1
-				for (int itr3 = rowVis; itr3 < range; itr3++) { // TODO standardize if its <range or <=range
+				for (int itr3 = rowVis; itr3 < range; itr3++) {
 					int index = ((itr2 * size) + itr3) * 3; // translate 2d coordinates to 1d for use as an array index
 
 					// get this voxel exposed faces from the buffer
@@ -128,8 +127,8 @@ public class FbGbvSightEngine {
 					}
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2); // world position
-
-					AlphaHolder alpha = aprov.getAlphas(xyz, quadr, ahol); // get this voxel alphas (assume faces values are multiplied by the block alpha)
+					// each face alpha values (assume faces values are multiplied by the block alpha)
+					AlphaHolder alpha = aprov.getAlphas(xyz, origin, quadr, ahol); 
 
 					if (alpha.block != 0) { // if light goes through, then row isnt yet out of sight
 						rowVis = itr3;
@@ -184,13 +183,14 @@ public class FbGbvSightEngine {
 	 * refer to traceQuadrant(..) for more in depth comments
 	 * 
 	 * @param origin position of the source of the light
-	 * @param range  max range that is iterated over
-	 * @param quadr  quadrant currently processed
+	 * @param range max range that is iterated over
+	 * @param quadr quadrant currently processed
 	 * @param oaprov old visibility provider
 	 * @param naprov new visibility provider
 	 * @param sucons sight consumer
 	 */
-	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaProvider oaprov, IAlphaProvider naprov, ISightUpdateConsumer sucons, boolean scout) {
+	public static void traceChangedQuadrant(Vector3i origin, int range, Quadrant quadr, IAlphaChangeProvider aprov, ISightUpdateConsumer sucons,
+			boolean scout) {
 		final Vector3i vit1 = new Vector3i();
 		final Vector3i vit2 = new Vector3i();
 		final Vector3i xyz = new Vector3i();
@@ -239,12 +239,11 @@ public class FbGbvSightEngine {
 
 					xyz.set(quadr.axis3).mul(itr3).add(vit2); // world position
 
-					oahol = oaprov.getAlphas(xyz, quadr, oahol);
+					aprov.getAlphas(xyz, origin, quadr, oahol, nahol);
 					oface1 *= oahol.f1;
 					oface2 *= oahol.f2;
 					oface3 *= oahol.f3;
 
-					nahol = naprov.getAlphas(xyz, quadr, nahol);
 					nface1 *= nahol.f1;
 					nface2 *= nahol.f2;
 					nface3 *= nahol.f3;

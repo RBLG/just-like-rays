@@ -12,6 +12,10 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * @author RBLG
+ * @since
+ */
 @Mixin(ClientboundLightUpdatePacketData.class)
 public class ClientboundLightUpdatePacketDataMixin {
 

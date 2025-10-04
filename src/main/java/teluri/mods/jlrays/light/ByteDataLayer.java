@@ -2,29 +2,25 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
-import org.joml.Math;
-
-import net.minecraft.Util;
-import net.minecraft.core.SectionPos;
-import net.minecraft.world.level.chunk.DataLayer;
-import teluri.mods.jlrays.util.ToneMapperHelper;
+import net.minecraft.util.Mth;
+//import io.netty.buffer.ByteBuf;
+//import net.minecraft.network.codec.ByteBufCodecs;
+//import net.minecraft.network.codec.StreamCodec;
+import teluri.mods.jlrays.config.IDepthHandler;
 
 /**
- * 
- * handle custom data size for storing light level values
+ * DataLayer implementation for byte sized light level
  * 
  * @author RBLG
- * @since v0.0.1
+ * @since v0.2.0
  */
-public class ByteDataLayer extends DataLayer {
-	// size of the array for a light level data size of 8bit
-	public static int BYTE_SIZED = 4096;
+public class ByteDataLayer extends DynamicDataLayer {
 
 	/**
 	 * instantiate empty
 	 */
 	public ByteDataLayer() {
-		super(0);
+		super();
 	}
 
 	/**
@@ -42,53 +38,7 @@ public class ByteDataLayer extends DataLayer {
 	 * @param ndata
 	 */
 	public ByteDataLayer(byte[] ndata) {
-		super(0);
-		this.data = ndata;
-		if (ndata.length != BYTE_SIZED) {
-			throw (IllegalArgumentException) Util.pauseInIde(new IllegalArgumentException("ByteDataLayer should be 4096 bytes not: " + ndata.length));
-		}
-	}
-
-	/**
-	 * get light level in the range 0..15
-	 */
-	@Override
-	public int get(int index) {
-		if (this.data == null) {
-			return this.defaultValue;
-		}
-		return (int) ToneMapperHelper.clamp(getFull(index));//.tonemap(getFull(index), 15, 15);
-	}
-
-	public int getFull(int x, int y, int z) {
-		return getFull(getIndex(x, y, z));
-	}
-
-	/**
-	 * get light level in the full range (0..255)
-	 */
-	public int getFull(int index) {
-		if (this.data == null) {
-			return this.defaultValue;
-		}
-		return data[index] & 0xFF; // cast to int as unsigned byte
-	}
-
-	@Override
-	public void set(int index, int value) {
-		byte[] bs = this.getData();
-		bs[index] = (byte) Math.clamp(value, 0, 255);
-	}
-
-	@Override
-	public byte[] getData() {
-		if (this.data == null) {
-			this.data = new byte[BYTE_SIZED];
-			if (this.defaultValue != 0) {
-				Arrays.fill(this.data, (byte) this.defaultValue);
-			}
-		}
-		return this.data;
+		super(ndata);
 	}
 
 	@Override
@@ -96,24 +46,70 @@ public class ByteDataLayer extends DataLayer {
 		return this.data == null ? new ByteDataLayer(this.defaultValue) : new ByteDataLayer((byte[]) this.data.clone());
 	}
 
-	public void absoluteAdd(int x, int y, int z, int value) {
-		x = SectionPos.sectionRelative(x);
-		y = SectionPos.sectionRelative(y);
-		z = SectionPos.sectionRelative(z);
-		add(x, y, z, value);
+	@Override
+	public int getDyn(int index) {
+		return data[index] & 0xFF;
 	}
 
-	public void add(int x, int y, int z, int value) {
-		this.add(getIndex(x, y, z), value);
+	@Override
+	public void setDyn(int index, int value) {
+		data[index] = (byte) Mth.clamp(value, 0, 0xFF);
 	}
 
-	/**
-	 * add to the stored light level (reduce the amount of operations compared to getting then setting)
-	 */
-	protected void add(int index, int value) {
-		byte[] bs = this.getData();
-		value += bs[index] & 0xFF; // cast to int as unsigned byte
-		bs[index] = (byte) Math.clamp(value, 0, 255);
+	@Override
+	public boolean isEmptyDyn() {
+		return data == null;
 	}
 
+	@Override
+	public void initDyn() {
+		if (data == null) {
+			data = new byte[SIZE];
+			if (defaultValue != 0) {
+				Arrays.fill(data, (byte) defaultValue);
+			}
+		}
+	}
+
+	@Override
+	public byte[] getData2() {
+		return data;
+	}
+
+	@Override
+	protected void initDyn(byte[] ndata) {
+		data = ndata;
+	}
+
+	public static class ByteDataLayerFactory implements IDepthHandler {
+		//private static final StreamCodec<ByteBuf, byte[]> BYTE_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(SIZE);
+		//@Override
+		//public StreamCodec<ByteBuf, byte[]> getCodec() {
+		//	return BYTE_DATA_LAYER_STREAM_CODEC;
+		//}
+		@Override
+		public DynamicDataLayer createDataLayer() {
+			return new ByteDataLayer();
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(byte[] data) {
+			return new ByteDataLayer(data);
+		}
+
+		@Override
+		public DynamicDataLayer createDataLayer(int defaultval) {
+			return new ByteDataLayer(defaultval);
+		}
+
+		@Override
+		public int getNibbleCount() {
+			return 2;
+		}
+	}
+
+	@Override
+	protected int getNibbleCount() {
+		return 2;
+	}
 }

@@ -15,7 +15,7 @@ import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import teluri.mods.jlrays.JustLikeRays;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.light.DynamicDataLayer;
 import teluri.mods.jlrays.light.JlrBlockLightEngine;
 import teluri.mods.jlrays.light.JlrLightSectionStorage;
 import teluri.mods.jlrays.light.sight.misc.AlphaHolder;
@@ -44,7 +44,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	protected final JlrLightSectionStorage lightStorage;
 
 	protected final LightChunk[][] chunkCache; // blockstate sources (never null)
-	protected final ByteDataLayer[][][] lightCache; // light level data (can be nulls)
+	protected final DynamicDataLayer[][][] lightCache; // light level data (can be nulls)
 	protected final boolean[][][] affectedCache; // used to tell mc what section need to be rebuilt
 
 	public TaskCache(int nax, int nay, int naz, int nbx, int nby, int nbz, LightChunkGetter nchunkgetter, JlrLightSectionStorage nlightstorage) {
@@ -71,7 +71,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		lenz = sbz - saz + 1;
 
 		chunkCache = new LightChunk[lenx][lenz];
-		lightCache = new ByteDataLayer[lenx][leny][lenz];
+		lightCache = new DynamicDataLayer[lenx][leny][lenz];
 		affectedCache = new boolean[lenx + 2][leny + 2][lenz + 2];
 		for (int itx = sax; itx <= sbx; itx++) {
 			for (int itz = saz; itz <= sbz; itz++) {
@@ -132,19 +132,15 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 		return chunkCache[sx][sz];
 	}
 
-	public ByteDataLayer getCachedDataLayer(int x, int y, int z) {
+	public DynamicDataLayer getCachedDataLayer(int x, int y, int z) {
 		int sx = SectionPos.blockToSectionCoord(x);
 		int sy = SectionPos.blockToSectionCoord(y);
 		int sz = SectionPos.blockToSectionCoord(z);
 		return getCachedDataLayerFromSectionPos(sx, sy, sz);
 	}
 
-	public ByteDataLayer getCachedDataLayerFromSectionPos(int sx, int sy, int sz) {
+	public DynamicDataLayer getCachedDataLayerFromSectionPos(int sx, int sy, int sz) {
 		return lightCache[sx - sax][sy - say][sz - saz];
-	}
-
-	public void AddLightLevel(int x, int y, int z, int value) {
-		getCachedDataLayer(x, y, z).absoluteAdd(x, y, z, value);
 	}
 
 	/**
@@ -191,8 +187,8 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	 * current alpha provider directly in there to avoid allocating by using lambdas
 	 */
 	@Override
-	public AlphaHolder getAlphas(Vector3i xyz, Quadrant quadr, AlphaHolder hol) {
-		return JlrBlockLightEngine.getAlphas(xyz, this, quadr, hol, this);
+	public AlphaHolder getAlphas(Vector3i xyz, Vector3i source, Quadrant quadr, AlphaHolder hol) {
+		return JlrBlockLightEngine.getAlphas(xyz, source, this, quadr, hol,this);
 	}
 
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {

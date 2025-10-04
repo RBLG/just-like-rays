@@ -5,7 +5,7 @@ import java.util.function.BiConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
-import teluri.mods.jlrays.light.ByteDataLayer;
+import teluri.mods.jlrays.light.DynamicDataLayer;
 
 /**
  * abstract the needs of the light engine to keep more independant from mc implementation (in theory)
@@ -28,7 +28,7 @@ public interface ILightStorage {
 
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> step);
 
-	public ByteDataLayer getDataLayer(int x, int y, int z);
+	public DynamicDataLayer getDataLayer(int x, int y, int z);
 
 	public void notifyUpdate(int x, int y, int z);
 }
