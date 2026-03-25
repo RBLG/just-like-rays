@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version '1.9-SNAPSHOT'
+	id 'net.fabricmc.fabric-loom' version '1.15-SNAPSHOT'
 	id 'maven-publish'
 	id "com.modrinth.minotaur" version "2.+"
 }
@@ -44,11 +44,11 @@ dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	
-	mappings loom.layered() {
-         officialMojangMappings()
-         //parchment("org.parchmentmc.data:parchment-1.21.4:2025.01.05@zip")
-     }
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	//mappings loom.layered() {
+    //     officialMojangMappings()
+    //     //parchment("org.parchmentmc.data:parchment-1.21.4:2025.01.05@zip")
+    //}
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	//modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
@@ -65,7 +65,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 25
 }
 
 java {
@@ -74,8 +74,8 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {
@@ -107,7 +107,7 @@ modrinth {
     projectId = "${project.archives_base_name}" // This can be the project ID or the slug. Either will work!
     //versionNumber = "${project.mod_version}" // You don't need to set this manually. Will fail if Modrinth has this version already
     versionType = "alpha" // alpha / beta / release
-    uploadFile = remapJar // With Loom, this MUST be set to `remapJar` instead of `jar`!
+    uploadFile = jar 
     gameVersions = ["${project.minecraft_version}"] // Must be an array, even with only one version
     //loaders = ["fabric"] // Must also be an array - no need to specify this if you're using Loom or ForgeGradle
     dependencies { // A special DSL for creating dependencies
