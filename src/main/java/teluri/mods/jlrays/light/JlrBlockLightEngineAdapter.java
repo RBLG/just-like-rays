@@ -70,7 +70,7 @@ public class JlrBlockLightEngineAdapter extends LightEngine<JlrLightSectionStora
 
 	@Override
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
-		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x, chunkPos.z);
+		LightChunk lightChunk = this.chunkSource.getChunkForLighting(chunkPos.x(), chunkPos.z());
 		if (lightChunk != null) {
 			lightChunk.findBlockLightSources(consumer);
 		}

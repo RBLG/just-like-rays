@@ -344,7 +344,7 @@ public class JlrBlockLightEngine {
 	 */
 	public static int getAlpha(BlockState state) {
 		// lightBlock is weird, 0..1 is transparent, 15 is opaque
-		return (state.getLightBlock() <= 1) ? 1 : 0;
+		return (state.getLightDampening() <= 1) ? 1 : 0;
 	}
 
 	/**

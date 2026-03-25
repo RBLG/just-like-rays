@@ -189,7 +189,7 @@ public class TaskCache implements IBlockStateProvider, IAlphaProvider {
 	}
 
 	public void findBlockLightSources(ChunkPos chunkPos, BiConsumer<BlockPos, BlockState> consumer) {
-		getCachedChunk(chunkPos.x, chunkPos.z).findBlockLightSources(consumer);
+		getCachedChunk(chunkPos.x(), chunkPos.z()).findBlockLightSources(consumer);
 	}
 
 	/**
