@@ -5,8 +5,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  modrinth_publish:
+  settup_build:
     uses: ./.github/workflows/shared_build.yml
+  modrinth_publish:
     steps:
     - name: Publish to Modrinth
       run: ./gradlew modrinth
