@@ -4,4 +4,5 @@ on: [pull_request, push]
 
 jobs:
   build:
-    uses: ./.github/workflows/shared_build.yml
+    steps:
+       uses: ./.github/workflows/shared_build.yml
