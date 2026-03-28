@@ -5,10 +5,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup:
+    uses: ./.github/workflows/shared_build.yml
   modrinth_publish:
     runs-on: ubuntu-latest
+    needs: setup
     steps:
-      uses: ./.github/actions/shared_build
     - name: Publish to Modrinth
       run: ./gradlew modrinth
       env:

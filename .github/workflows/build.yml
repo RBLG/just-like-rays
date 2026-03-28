@@ -4,6 +4,4 @@ on: [pull_request, push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    steps:
-      uses: ./.github/actions/shared_build
+    uses: ./.github/workflows/shared_build.yml
