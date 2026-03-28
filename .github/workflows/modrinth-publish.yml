@@ -8,7 +8,7 @@ jobs:
   modrinth_publish:
     runs-on: ubuntu-latest
     steps:
-      uses: ./.github/actions/shared_build.yml
+      uses: ./.github/actions/shared_build
     - name: Publish to Modrinth
       run: ./gradlew modrinth
       env:
