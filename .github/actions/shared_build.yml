@@ -1,12 +1,10 @@
 name: shared_build
-on: [workflow_call]
-
-jobs:
-  shared_build:
+description: 'setup and build'
+runs:
+    using: "composite"
     strategy:
       matrix:
         java: [25,]
-    runs-on: ubuntu-latest
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
