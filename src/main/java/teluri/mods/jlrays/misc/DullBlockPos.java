@@ -29,7 +29,7 @@ public class DullBlockPos extends BlockPos {
 		int val = COOLDOWN.getAndUpdate((v) -> v <= 0 ? 100 : v - 1);
 		if (val <= 0) {
 			String msg = "detected a non altered call to checkBlock, light wont be updated. this is probably a mod incompatibility (importance depends on what said mod does)."
-					+ "this error will be silenced for 100 calls to avoid spam. see stack trace for more insight:";
+					+ "see stack trace for more insight: (this warning is silenced for the next 100 triggers)";
 			JustLikeRays.LOGGER.warn(msg);
 			Thread.dumpStack();
 		}

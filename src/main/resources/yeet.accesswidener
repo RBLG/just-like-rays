@@ -28,3 +28,5 @@ mutable field net/minecraft/world/level/lighting/LevelLightEngine blockEngine Ln
 
 mutable field net/minecraft/world/level/block/state/BlockBehaviour$BlockStateBase lightEmission I
 
+accessible field net/minecraft/world/level/chunk/storage/SerializableChunkData$SectionData blockLight Lnet/minecraft/world/level/chunk/DataLayer;
+
