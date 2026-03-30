@@ -17,6 +17,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public static final int SIZE = 4096;
 	public static final int HALF_SIZE = 2048;
+	public static final int MERGED_SIZE = 4096 + 2048;
 
 	public final int precision;
 
@@ -44,7 +45,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public DynamicDataLayer(byte[] ndata) {
 		this(0);
-		int wantedSize = HALF_SIZE * this.getNibbleCount();
+		int wantedSize = 2048 + HALF_SIZE * this.getNibbleCount();
 		int receivedSize = ndata.length;
 		if (receivedSize == wantedSize) {
 			initDyn(ndata);
@@ -54,8 +55,8 @@ public abstract class DynamicDataLayer extends DataLayer {
 	}
 
 	public static void warnForIncorrectSize(int wanted, int length) {
-		String msg = String.format("ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache", wanted, length);
-		JustLikeRays.LOGGER.warn(msg);
+		String msg = "ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache";
+		JustLikeRays.LOGGER.warn(String.format(msg, wanted,length));
 	}
 
 	public int get(int x, int y, int z) {

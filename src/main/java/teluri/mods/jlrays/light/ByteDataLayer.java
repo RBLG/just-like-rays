@@ -47,12 +47,12 @@ public class ByteDataLayer extends DynamicDataLayer {
 
 	@Override
 	public int getDyn(int index) {
-		return data[index] & 0xFF;
+		return data[2048 + index] & 0xFF;
 	}
 
 	@Override
 	public void setDyn(int index, int value) {
-		data[index] = (byte) Math.clamp(value, 0, 0xFF);
+		data[2048 + index] = (byte) Math.clamp(value, 0, 0xFF);
 	}
 
 	@Override
@@ -63,7 +63,7 @@ public class ByteDataLayer extends DynamicDataLayer {
 	@Override
 	public void initDyn() {
 		if (data == null) {
-			data = new byte[SIZE];
+			data = new byte[MERGED_SIZE];
 			if (defaultValue != 0) {
 				Arrays.fill(data, (byte) defaultValue);
 			}
@@ -81,11 +81,13 @@ public class ByteDataLayer extends DynamicDataLayer {
 	}
 
 	public static class ByteDataLayerFactory implements IDepthHandler {
-		private static final StreamCodec<ByteBuf, byte[]> BYTE_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(SIZE);
+		private static final StreamCodec<ByteBuf, byte[]> BYTE_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(MERGED_SIZE);
+
 		@Override
 		public StreamCodec<ByteBuf, byte[]> getCodec() {
 			return BYTE_DATA_LAYER_STREAM_CODEC;
 		}
+
 		@Override
 		public DynamicDataLayer createDataLayer() {
 			return new ByteDataLayer();

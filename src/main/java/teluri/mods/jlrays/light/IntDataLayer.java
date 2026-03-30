@@ -13,7 +13,7 @@ import teluri.mods.jlrays.config.IDepthHandler;
  * @author RBLG
  * @since v0.2.0
  */
-public class IntDataLayer extends DynamicDataLayer {
+public class IntDataLayer extends DynamicDataLayer { //TODO impl using a var handle
 	protected int[] data;
 
 	/**
