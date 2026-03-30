@@ -25,17 +25,17 @@ public class ChunkSerializerMixin {
 
 	private static String BLOCK_LIGHT_JLR = "BlockLightJlr";
 
-	protected static final ActionWithCooldown WARN_VANILLA = new ActionWithCooldown(20, () -> {
+	private static final ActionWithCooldown WARN_VANILLA = new ActionWithCooldown(20, () -> {
 		String msg = "BlockLightJlr not found! this is probably vanilla light data. consider clearing world cache! "
 				+ " (this warning is silenced for the next 20 triggers)";
 		JustLikeRays.LOGGER.warn(msg);
 	});
-	protected static final ActionWithCooldown WARN_NON_2048 = new ActionWithCooldown(20, () -> {
+	private static final ActionWithCooldown WARN_NON_2048 = new ActionWithCooldown(20, () -> {
 		String msg = "BlockLight doesnt have a length of 2048, possibly from a previous jlr version. consider clearing world cache!"
 				+ " (this warning is silenced for the next 20 triggers)";
 		JustLikeRays.LOGGER.warn(msg);
 	});
-	protected static final ActionWithCooldown WARN_JLR_BAD_LENGTH = new ActionWithCooldown(20, () -> {
+	private static final ActionWithCooldown WARN_JLR_BAD_LENGTH = new ActionWithCooldown(20, () -> {
 		String msg = "BlockLightJlr length isnt coherent with current config, it has probably changed. consider clearing world cache!"
 				+ " (this warning is silenced for the next 20 triggers)";
 		JustLikeRays.LOGGER.warn(msg);
