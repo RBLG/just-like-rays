@@ -47,12 +47,12 @@ public class ByteDataLayer extends DynamicDataLayer {
 
 	@Override
 	public int getDyn(int index) {
-		return data[2048 + index] & 0xFF;
+		return data[index] & 0xFF;
 	}
 
 	@Override
 	public void setDyn(int index, int value) {
-		data[2048 + index] = (byte) Math.clamp(value, 0, 0xFF);
+		data[index] = (byte) Math.clamp(value, 0, 0xFF);
 	}
 
 	@Override

@@ -1,6 +1,5 @@
 package teluri.mods.jlrays.config;
 
-
 /**
  * general config for the light engine
  * 
@@ -36,6 +35,8 @@ public class JlrConfig {
 	 * flat malus on light level value (pre rounding). allow values to hit 0 and so have a finite range
 	 */
 	public final float minimumValue = 0.5f;
+
+	public final boolean fakeLightBounce = false;
 
 	public JlrConfig() {
 
