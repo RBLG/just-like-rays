@@ -1,5 +1,10 @@
 package teluri.mods.jlrays.light;
 
+import java.util.Arrays;
+
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.level.chunk.DataLayer;
 import teluri.mods.jlrays.JustLikeRays;
 import teluri.mods.jlrays.config.JlrConfig;
@@ -12,6 +17,8 @@ import teluri.mods.jlrays.util.ToneMapperHelper;
  * @since v0.2.0
  */
 public abstract class DynamicDataLayer extends DataLayer {
+	//TODO maybe lazy init to ensure it doesnt happen to early?
+	public static final StreamCodec<ByteBuf, byte[]> DYNAMIC_STREAM_CODEC = ByteBufCodecs.byteArray(JlrConfig.LazyGet().getFullDataLayerSize());
 	/**
 	 * size of a chunk
 	 */
@@ -45,18 +52,19 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	public DynamicDataLayer(byte[] ndata) {
 		this(0);
-		int wantedSize = 2048 + HALF_SIZE * this.getNibbleCount();
+		int wantedSize = getExpectedSize();
 		int receivedSize = ndata.length;
 		if (receivedSize == wantedSize) {
-			initDyn(ndata);
+			data = ndata;
 		} else {
+			data = new byte[wantedSize];
 			warnForIncorrectSize(wantedSize, receivedSize);
 		}
 	}
 
 	public static void warnForIncorrectSize(int wanted, int length) {
 		String msg = "ByteDataLayer should be %d bytes not %d, defaulting to empty but something went wrong so clear world cache";
-		JustLikeRays.LOGGER.warn(String.format(msg, wanted,length));
+		JustLikeRays.LOGGER.warn(String.format(msg, wanted, length));
 	}
 
 	public int get(int x, int y, int z) {
@@ -76,7 +84,7 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	@Override
 	public int get(int index) {
-		return isEmptyDyn() ? defaultValue : (int) ToneMapperHelper.clamp(getFull(index) * (1 >> this.precision));
+		return isEmpty() ? defaultValue : (int) ToneMapperHelper.clamp(getFull(index) * (1 >> this.precision));
 	}
 
 	public float getFull(int x, int y, int z) {
@@ -87,33 +95,48 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 * get light level in the full range (0..255)
 	 */
 	public float getFull(int index) {
-		return isEmptyDyn() ? defaultValue : getDyn(index);
+		return isEmpty() ? defaultValue : getDyn(index);
 	}
 
 	@Override
 	public void set(int index, int value) {
-		initDyn();
+		init();
 		setDyn(index, value);
 	}
 
 	@Override
 	public byte[] getData() {
-		initDyn();
-		return getData2();
+		init();
+		return data;
 	}
-
-	public abstract byte[] getData2();
 
 	@Override
 	public abstract DynamicDataLayer copy();
+
+	public boolean isEmpty() {
+		return data == null;
+	}
 
 	/**
 	 * add to the stored light level (reduce the amount of operations compared to getting then setting)
 	 */
 	public void add(int index, int value) {
-		initDyn();
+		init();
 		value += getDyn(index);
 		setDyn(index, value);
+	}
+
+	public void init() {
+		if (data == null) {
+			data = new byte[getExpectedSize()];
+			if (defaultValue != 0) { // TODO respecialize fill?
+				Arrays.fill(data, (byte) defaultValue);
+			}
+		}
+	}
+
+	public int getExpectedSize() {
+		return HALF_SIZE * this.getNibbleCount() + (JlrConfig.LazyGet().fakeLightBounce ? 2048 : 0);
 	}
 
 	public static int getIndex(int x, int y, int z) {
@@ -123,12 +146,6 @@ public abstract class DynamicDataLayer extends DataLayer {
 	public abstract int getDyn(int index);
 
 	public abstract void setDyn(int index, int value);
-
-	public abstract boolean isEmptyDyn();
-
-	public abstract void initDyn();
-
-	protected abstract void initDyn(byte[] ndata);
 
 	protected abstract int getNibbleCount();
 }

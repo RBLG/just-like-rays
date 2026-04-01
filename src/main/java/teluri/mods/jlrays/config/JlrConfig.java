@@ -38,6 +38,10 @@ public class JlrConfig {
 
 	public final boolean fakeLightBounce = false;
 
+	public int getFullDataLayerSize() {
+		return depthHandler.getDataLayerSize() + (fakeLightBounce ? 2048 : 0);
+	}
+
 	public JlrConfig() {
 
 	}

@@ -1,10 +1,5 @@
 package teluri.mods.jlrays.light;
 
-import java.util.Arrays;
-
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import teluri.mods.jlrays.config.IDepthHandler;
 
 /**
@@ -55,38 +50,7 @@ public class ByteDataLayer extends DynamicDataLayer {
 		data[index] = (byte) Math.clamp(value, 0, 0xFF);
 	}
 
-	@Override
-	public boolean isEmptyDyn() {
-		return data == null;
-	}
-
-	@Override
-	public void initDyn() {
-		if (data == null) {
-			data = new byte[MERGED_SIZE];
-			if (defaultValue != 0) {
-				Arrays.fill(data, (byte) defaultValue);
-			}
-		}
-	}
-
-	@Override
-	public byte[] getData2() {
-		return data;
-	}
-
-	@Override
-	protected void initDyn(byte[] ndata) {
-		data = ndata;
-	}
-
 	public static class ByteDataLayerFactory implements IDepthHandler {
-		private static final StreamCodec<ByteBuf, byte[]> BYTE_DATA_LAYER_STREAM_CODEC = ByteBufCodecs.byteArray(MERGED_SIZE);
-
-		@Override
-		public StreamCodec<ByteBuf, byte[]> getCodec() {
-			return BYTE_DATA_LAYER_STREAM_CODEC;
-		}
 
 		@Override
 		public DynamicDataLayer createDataLayer() {

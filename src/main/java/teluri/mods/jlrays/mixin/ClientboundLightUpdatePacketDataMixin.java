@@ -8,7 +8,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
-import teluri.mods.jlrays.config.JlrConfig;
+import teluri.mods.jlrays.light.DynamicDataLayer;
 
 /**
  * @author RBLG
@@ -30,7 +30,7 @@ public class ClientboundLightUpdatePacketDataMixin {
 			) //
 	)
 	public StreamCodec<ByteBuf, byte[]> getBlockLightDataLayerStreamCodec(StreamCodec<ByteBuf, byte[]> prev) {
-		return JlrConfig.LazyGet().depthHandler.getCodec();
+		return DynamicDataLayer.DYNAMIC_STREAM_CODEC;
 	}
 
 }
