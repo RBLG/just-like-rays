@@ -46,12 +46,12 @@ public class IntDataLayer extends DynamicDataLayer {
 
 	@Override
 	public int getDyn(int index) {
-		return (int) DATA_VARHANDLE.get(data, index);
+		return (int) DATA_VARHANDLE.get(data, index * 4);
 	}
 
 	@Override
 	public void setDyn(int index, int value) {
-		DATA_VARHANDLE.set(data, index, value);
+		DATA_VARHANDLE.set(data, index * 4, value);
 	}
 
 	public static class IntDataLayerFactory implements IDepthHandler {

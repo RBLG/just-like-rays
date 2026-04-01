@@ -46,13 +46,13 @@ public class ShortDataLayer extends DynamicDataLayer {
 
 	@Override
 	public int getDyn(int index) {
-		short value = (short) DATA_VARHANDLE.get(data, index);
+		short value = (short) DATA_VARHANDLE.get(data, index * 2);
 		return (int) value & 0xFFFF;
 	}
 
 	@Override
 	public void setDyn(int index, int value) {
-		DATA_VARHANDLE.set(data, index, (short) Math.clamp(value, 0, 0xFFFF));
+		DATA_VARHANDLE.set(data, index * 2, (short) Math.clamp(value, 0, 0xFFFF));
 	}
 
 	public static class ShortDataLayerFactory implements IDepthHandler {
