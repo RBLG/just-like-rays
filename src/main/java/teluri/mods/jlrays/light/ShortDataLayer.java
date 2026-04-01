@@ -46,7 +46,8 @@ public class ShortDataLayer extends DynamicDataLayer {
 
 	@Override
 	public int getDyn(int index) {
-		return (int) DATA_VARHANDLE.get(data, index) & 0xFFFF;
+		short value = (short) DATA_VARHANDLE.get(data, index);
+		return (int) value & 0xFFFF;
 	}
 
 	@Override
