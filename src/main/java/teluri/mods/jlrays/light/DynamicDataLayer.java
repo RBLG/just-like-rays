@@ -2,6 +2,8 @@ package teluri.mods.jlrays.light;
 
 import java.util.Arrays;
 
+import org.joml.Math;
+
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -17,7 +19,7 @@ import teluri.mods.jlrays.util.ToneMapperHelper;
  * @since v0.2.0
  */
 public abstract class DynamicDataLayer extends DataLayer {
-	//TODO maybe lazy init to ensure it doesnt happen to early?
+	// TODO maybe lazy init to ensure it doesnt happen to early?
 	public static final StreamCodec<ByteBuf, byte[]> DYNAMIC_STREAM_CODEC = ByteBufCodecs.byteArray(JlrConfig.LazyGet().getFullDataLayerSize());
 	/**
 	 * size of a chunk
@@ -84,7 +86,15 @@ public abstract class DynamicDataLayer extends DataLayer {
 	 */
 	@Override
 	public int get(int index) {
-		return isEmpty() ? defaultValue : (int) ToneMapperHelper.clamp(getFull(index) * (1 >> this.precision));
+		if (isEmpty()) {
+			return defaultValue;
+		}
+		int main = (int) ToneMapperHelper.clamp(getFull(index) * (1 >> this.precision));
+		if (!JlrConfig.LazyGet().fakeLightBounce) {
+			return main;
+		}
+		int bounce = this.getBounced(getByteIndex(index), getNibbleIndex(index));
+		return Math.max(main, bounce);
 	}
 
 	public float getFull(int x, int y, int z) {
@@ -139,6 +149,10 @@ public abstract class DynamicDataLayer extends DataLayer {
 		return HALF_SIZE * this.getNibbleCount() + (JlrConfig.LazyGet().fakeLightBounce ? 2048 : 0);
 	}
 
+	public int getBounceDataIndexStart() {
+		return HALF_SIZE * this.getNibbleCount();
+	}
+
 	public static int getIndex(int x, int y, int z) {
 		return DataLayer.getIndex(x, y, z);
 	}
@@ -148,4 +162,29 @@ public abstract class DynamicDataLayer extends DataLayer {
 	public abstract void setDyn(int index, int value);
 
 	protected abstract int getNibbleCount();
+
+	public static int getIndexBounced(int x, int y, int z) {
+		return y << 8 | z << 4 | x;
+	}
+
+	public int getBounced(int x, int y, int z) {
+		int index = getIndexBounced(x, y, z);
+		return this.getBounced(getByteIndex(index), getNibbleIndex(index));
+	}
+
+	public void setBounced(int x, int y, int z, int value) {
+		int index = getIndexBounced(x, y, z);
+		this.setBounced(getByteIndex(index), getNibbleIndex(index), value);
+	}
+
+	public int getBounced(int bindex, int nindex) {
+		return isEmpty() ? defaultValue : data[bindex] >> 4 * nindex & 15;
+	}
+
+	public void setBounced(int bindex, int nindex, int value) {
+		init();
+		int k = ~(15 << 4 * nindex);
+		int l = (value & 15) << 4 * nindex;
+		data[bindex] = (byte) (data[bindex] & k | l);
+	}
 }
