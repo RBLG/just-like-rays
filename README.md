@@ -17,8 +17,10 @@ This mod is in alpha. Core content is there but there be dragons! (and edge case
 ##### Todo/Roadmap:
 
 - tweaking mc border chunk system to fix ranges above 15
-- exposed settings (radius, intensity, etc)
+- using vanilla lighting for light bounce and costly sources (like lava)
 
 ##### Maybe/Far future:
 
-- further paralelization of the GBV algorithm
+- jlr unlimited (using the code api, once its features are viable)
+- per face light level
+- use of jlr additionnal data in rendering
