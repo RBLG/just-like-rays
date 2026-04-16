@@ -24,3 +24,4 @@ This mod is in alpha. Core content is there but there be dragons! (and edge case
 - jlr unlimited (using the code api, once its features are viable)
 - per face light level
 - use of jlr additionnal data in rendering
+- lambdynlight support
