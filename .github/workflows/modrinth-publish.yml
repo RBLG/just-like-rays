@@ -1,9 +1,11 @@
 
-name: build
-on: [pull_request, push]
+name: modrinth_publish
+
+on:
+  workflow_dispatch:
 
 jobs:
-  build:
+  modrinth_publish:
     strategy:
       matrix:
         java: [25,]
@@ -22,3 +24,7 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
+      - name: Publish to Modrinth
+        run: ./gradlew modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
